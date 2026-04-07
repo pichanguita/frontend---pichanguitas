@@ -1,0 +1,132 @@
+/**
+ * SPORT TYPES SERVICE
+ * Servicio para operaciones CRUD de tipos de deportes.
+ * INTEGRADO CON BACKEND
+ */
+
+import { API_CONFIG, getAuthHeaders } from '@/config/api.config'
+
+/**
+ * Obtener todos los tipos de deportes desde el backend
+ * @returns {Promise<Array>} Array de tipos de deportes
+ */
+export const fetchSportTypes = async () => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.GET_ALL, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al obtener tipos de deportes')
+    }
+
+    return data.data || []
+  } catch (error) {
+    throw new Error(error.message || 'Error al obtener tipos de deportes')
+  }
+}
+
+/**
+ * Obtener un tipo de deporte por ID desde el backend
+ * @param {string} sportTypeId - ID del tipo de deporte
+ * @returns {Promise<Object>} Tipo de deporte
+ */
+export const fetchSportTypeById = async (sportTypeId) => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.GET_BY_ID(sportTypeId), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al obtener tipo de deporte')
+    }
+
+    return data.data
+  } catch (error) {
+    throw new Error(error.message || 'Error al obtener tipo de deporte')
+  }
+}
+
+/**
+ * Crear un nuevo tipo de deporte en el backend
+ * @param {Object} sportTypeData - Datos del tipo de deporte
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<Object>} Tipo de deporte creado
+ */
+export const createSportTypeAPI = async (sportTypeData, token) => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.CREATE, {
+      method: 'POST',
+      headers: getAuthHeaders(token),
+      body: JSON.stringify(sportTypeData),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al crear tipo de deporte')
+    }
+
+    return data.data
+  } catch (error) {
+    throw new Error(error.message || 'Error al crear tipo de deporte')
+  }
+}
+
+/**
+ * Actualizar un tipo de deporte en el backend
+ * @param {string} sportTypeId - ID del tipo de deporte
+ * @param {Object} updates - Datos a actualizar
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<Object>} Tipo de deporte actualizado
+ */
+export const updateSportTypeAPI = async (sportTypeId, updates, token) => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.UPDATE(sportTypeId), {
+      method: 'PUT',
+      headers: getAuthHeaders(token),
+      body: JSON.stringify(updates),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al actualizar tipo de deporte')
+    }
+
+    return data.data
+  } catch (error) {
+    throw new Error(error.message || 'Error al actualizar tipo de deporte')
+  }
+}
+
+/**
+ * Eliminar un tipo de deporte (soft delete) en el backend
+ * @param {string} sportTypeId - ID del tipo de deporte
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<boolean>} True si se eliminó
+ */
+export const deleteSportTypeAPI = async (sportTypeId, token) => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.DELETE(sportTypeId), {
+      method: 'DELETE',
+      headers: getAuthHeaders(token),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al eliminar tipo de deporte')
+    }
+
+    return true
+  } catch (error) {
+    throw new Error(error.message || 'Error al eliminar tipo de deporte')
+  }
+}

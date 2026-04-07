@@ -1,0 +1,351 @@
+/**
+ * Helpers y utilidades para el módulo de gestión de pagos
+ */
+
+import { parseLocalDate } from '../dateFormatters'
+
+// Constantes
+export const ADVANCE_PERCENTAGE = 30 // 30% de adelanto requerido
+
+/**
+ * Calcular montos para una reserva (total, adelanto, pendiente)
+ * IMPORTANTE: Usa los valores REALES de la BD, NO calcula el 30% hardcodeado
+ * Prioridad: total_price > totalPrice (precio FINAL después de descuentos)
+ * NOTA: subtotal es el precio ANTES de descuentos, total_price es el precio FINAL
+ */
+export const calculateAmounts = (reservation, fields) => {
+  // Usar total_price como fuente principal (precio final después de descuentos)
+  // Esto es crucial para reservas con horas gratis donde subtotal=100 pero total_price=0
+  const total =
+    parseFloat(reservation.totalPrice) ??
+    parseFloat(reservation.total_price) ??
+    parseFloat(reservation.subtotal) ??
+    0
+  const advance = parseFloat(reservation.advancePayment || reservation.advance_payment) || 0
+  const pending = parseFloat(reservation.remainingPayment || reservation.remaining_payment) || 0
+
+  // Si no hay datos de la BD, calcular como fallback
+  if (total === 0 && fields) {
+    const fieldId = reservation.fieldId || reservation.field_id
+    const field = fields.find((f) => f.id === fieldId)
+    if (field) {
+      const calculatedTotal = parseFloat(field.pricePerHour) * parseFloat(reservation.hours || 1)
+      const calculatedAdvance = calculatedTotal * (ADVANCE_PERCENTAGE / 100)
+      const calculatedPending = calculatedTotal - calculatedAdvance
+      return {
+        total: calculatedTotal,
+        advance: calculatedAdvance,
+        pending: calculatedPending,
+      }
+    }
+  }
+
+  return { total, advance, pending }
+}
+
+/**
+ * Obtener color según el estado de la reserva
+ */
+export const getStatusColor = (reservation) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const resDate = parseLocalDate(reservation.date)
+  resDate.setHours(0, 0, 0, 0)
+
+  // Normalizar payment_status: BD usa 'paid', 'partial', 'pending'
+  const paymentStatus = reservation.paymentStatus || reservation.payment_status
+
+  if (paymentStatus === 'fully_paid' || paymentStatus === 'paid') {
+    return 'text-green-600 bg-green-50'
+  } else if (paymentStatus === 'no_show') {
+    return 'text-orange-600 bg-orange-50'
+  } else if (resDate < today) {
+    return 'text-red-600 bg-red-50'
+  } else if (resDate.getTime() === today.getTime()) {
+    return 'text-amber-600 bg-amber-50'
+  } else {
+    return 'text-blue-600 bg-blue-50'
+  }
+}
+
+/**
+ * Verificar si se puede registrar el pago (cuando ha llegado la hora de la reserva)
+ */
+export const canRegisterPayment = (reservation, currentTime) => {
+  const now = currentTime
+  const resDate = parseLocalDate(reservation.date)
+
+  // Extraer hora de inicio de la reserva
+  // Formato esperado: "14:00 - 15:00" o "14:00" o "14-16"
+  const timeStr = reservation.time || ''
+  let startHour, startMinute
+
+  // Intentar parsear diferentes formatos
+  const timeMatch1 = timeStr.match(/^(\d{1,2}):(\d{2})/) // Formato "14:00"
+  const timeMatch2 = timeStr.match(/^(\d{1,2})-/) // Formato "14-16"
+
+  if (timeMatch1) {
+    startHour = parseInt(timeMatch1[1], 10)
+    startMinute = parseInt(timeMatch1[2], 10)
+  } else if (timeMatch2) {
+    startHour = parseInt(timeMatch2[1], 10)
+    startMinute = 0
+  } else {
+    return {
+      enabled: false,
+      reason: 'Formato de hora no válido',
+    }
+  }
+
+  // Crear fecha con la hora de inicio de la reserva
+  const reservationTime = new Date(resDate)
+  reservationTime.setHours(startHour, startMinute, 0, 0)
+
+  // Verificar si ya ha llegado la hora de la reserva (o ya pasó)
+  if (now >= reservationTime) {
+    return {
+      enabled: true,
+      reason: '',
+    }
+  } else {
+    // Aún no es la hora
+    const minutesUntil = Math.ceil((reservationTime - now) / (1000 * 60))
+    const hoursUntil = Math.floor(minutesUntil / 60)
+    const mins = minutesUntil % 60
+
+    let timeMessage = ''
+    if (hoursUntil > 0) {
+      timeMessage = `${hoursUntil}h ${mins}min`
+    } else {
+      timeMessage = `${mins} minutos`
+    }
+
+    return {
+      enabled: false,
+      reason: `Disponible en ${timeMessage}`,
+    }
+  }
+}
+
+/**
+ * Calcular estadísticas de pagos
+ */
+export const calculatePaymentStats = (existingReservations, _fields) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Normalizar a inicio del día
+
+  const stats = {
+    totalPending: 0,
+    totalCollected: 0,
+    pendingCount: 0,
+    completedCount: 0,
+    todayPending: 0,
+    overdueCount: 0,
+    overdueAmount: 0, // Monto pendiente de reservas vencidas
+    noShowCount: 0,
+    noShowRevenue: 0, // Adelantos retenidos de no-shows
+    cancelledCount: 0,
+    cancelledRevenue: 0, // Adelantos de reservas canceladas (menos reembolsos)
+    totalRefunded: 0, // Total de dinero reembolsado
+    refundedCount: 0, // Cantidad de reembolsos procesados
+  }
+
+  existingReservations.forEach((reservation) => {
+    // Usar total_price como fuente principal (precio final después de descuentos)
+    // Esto es crucial para reservas con horas gratis donde subtotal=100 pero total_price=0
+    const totalPrice =
+      parseFloat(reservation.totalPrice) ??
+      parseFloat(reservation.total_price) ??
+      parseFloat(reservation.subtotal) ??
+      0
+    const advancePaid = parseFloat(reservation.advancePayment || reservation.advance_payment) || 0
+    const pendingAmount =
+      parseFloat(reservation.remainingPayment || reservation.remaining_payment) || 0
+
+    if (totalPrice === 0) {
+      return
+    }
+
+    // Obtener status de la reserva (cancelled, pending, confirmed, completed, no_show)
+    const reservationStatus = reservation.status || 'pending'
+    // Normalizar payment_status: la BD usa 'paid', 'partial', 'pending', 'no_show'
+    const paymentStatus = reservation.paymentStatus || reservation.payment_status
+
+    // ============================================
+    // RESERVAS CANCELADAS - No tienen pagos pendientes
+    // Solo cuentan el adelanto recibido como ingreso
+    // ============================================
+    if (reservationStatus === 'cancelled') {
+      stats.cancelledCount++
+
+      // Verificar si hay reembolso procesado
+      const refundAmount = parseFloat(reservation.refundAmount || reservation.refund_amount) || 0
+      const refundStatus = reservation.refundStatus || reservation.refund_status
+
+      // El adelanto que se recibió cuenta como ingreso
+      // El advance_kept tiene el adelanto retenido después del reembolso
+      const advanceKept =
+        parseFloat(reservation.advanceKept || reservation.advance_kept) || advancePaid
+
+      // Si hay reembolso procesado, contabilizarlo
+      if (refundAmount > 0 && refundStatus === 'processed') {
+        stats.totalRefunded += refundAmount
+        stats.refundedCount++
+        // El ingreso real es el adelanto menos el reembolso
+        const netIncome = advanceKept - refundAmount
+        stats.cancelledRevenue += netIncome > 0 ? netIncome : 0
+        stats.totalCollected += netIncome > 0 ? netIncome : 0
+      } else {
+        // Sin reembolso, el adelanto retenido es el ingreso
+        stats.cancelledRevenue += advanceKept
+        stats.totalCollected += advanceKept
+      }
+
+      return // No procesar más esta reserva
+    }
+
+    // Resto de estados normales
+    if (paymentStatus === 'fully_paid' || paymentStatus === 'paid') {
+      stats.totalCollected += totalPrice
+      stats.completedCount++
+    } else if (paymentStatus === 'no_show') {
+      stats.totalCollected += advancePaid
+      stats.noShowCount++
+      stats.noShowRevenue += advancePaid
+    } else if (paymentStatus === 'partially_paid' || paymentStatus === 'partial') {
+      stats.totalCollected += advancePaid
+      stats.totalPending += pendingAmount
+      stats.pendingCount++
+    } else {
+      // pending o cualquier otro estado
+      stats.totalPending += pendingAmount
+      stats.pendingCount++
+    }
+
+    // Verificar fechas para reservas no completamente pagadas
+    if (paymentStatus !== 'fully_paid' && paymentStatus !== 'paid' && paymentStatus !== 'no_show') {
+      const resDate = parseLocalDate(reservation.date)
+      resDate.setHours(0, 0, 0, 0)
+
+      if (resDate.getTime() === today.getTime()) {
+        stats.todayPending += pendingAmount
+      }
+
+      if (resDate.getTime() < today.getTime()) {
+        stats.overdueCount++
+        stats.overdueAmount += pendingAmount
+      }
+    }
+  })
+
+  return stats
+}
+
+/**
+ * Filtrar reservas según criterios
+ */
+export const filterReservations = (reservations, filters) => {
+  const { activeTab, searchTerm, selectedField, selectedDateRange } = filters
+  let filtered = [...reservations]
+
+  // Filtrar por estado de pago y estado de reserva
+  // Normalizar payment_status: la BD usa 'paid', 'partial', 'pending', 'no_show'
+  // Normalizar status: la BD usa 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'
+  if (activeTab === 'pending') {
+    filtered = filtered.filter((res) => {
+      const paymentStatus = res.paymentStatus || res.payment_status
+      const reservationStatus = res.status || 'pending'
+      // Excluir canceladas y no-show de los pendientes
+      return (
+        reservationStatus !== 'cancelled' &&
+        paymentStatus !== 'fully_paid' &&
+        paymentStatus !== 'paid' &&
+        paymentStatus !== 'no_show'
+      )
+    })
+  } else if (activeTab === 'completed') {
+    filtered = filtered.filter((res) => {
+      const paymentStatus = res.paymentStatus || res.payment_status
+      const reservationStatus = res.status || 'pending'
+      // Excluir canceladas de los completados
+      return (
+        reservationStatus !== 'cancelled' &&
+        (paymentStatus === 'fully_paid' || paymentStatus === 'paid')
+      )
+    })
+  } else if (activeTab === 'overdue') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    filtered = filtered.filter((res) => {
+      const resDate = parseLocalDate(res.date)
+      resDate.setHours(0, 0, 0, 0)
+      const paymentStatus = res.paymentStatus || res.payment_status
+      const reservationStatus = res.status || 'pending'
+      // Excluir canceladas de los vencidos
+      return (
+        reservationStatus !== 'cancelled' &&
+        resDate < today &&
+        paymentStatus !== 'fully_paid' &&
+        paymentStatus !== 'paid' &&
+        paymentStatus !== 'no_show'
+      )
+    })
+  } else if (activeTab === 'no_show') {
+    filtered = filtered.filter((res) => {
+      const paymentStatus = res.paymentStatus || res.payment_status
+      return paymentStatus === 'no_show'
+    })
+  } else if (activeTab === 'cancelled') {
+    // Nueva pestaña: solo reservas canceladas
+    filtered = filtered.filter((res) => {
+      const reservationStatus = res.status || 'pending'
+      return reservationStatus === 'cancelled'
+    })
+  }
+
+  // Filtrar por búsqueda
+  if (searchTerm) {
+    filtered = filtered.filter((res) => {
+      const customerName = res.customerName || res.customer_name || ''
+      const phoneNumber = res.phoneNumber || res.customer_phone || ''
+      return (
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        phoneNumber.includes(searchTerm)
+      )
+    })
+  }
+
+  // Filtrar por campo
+  // NOTA: selectedField viene como string del HTML select, fieldId puede ser número
+  if (selectedField !== 'all') {
+    const selectedFieldId = parseInt(selectedField, 10)
+    filtered = filtered.filter((res) => {
+      const fieldId = parseInt(res.fieldId || res.field_id, 10)
+      return fieldId === selectedFieldId
+    })
+  }
+
+  // Filtrar por rango de fecha
+  const today = new Date()
+  if (selectedDateRange === 'today') {
+    filtered = filtered.filter((res) => {
+      const resDate = parseLocalDate(res.date)
+      return resDate.toDateString() === today.toDateString()
+    })
+  } else if (selectedDateRange === 'week') {
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    filtered = filtered.filter((res) => {
+      const resDate = parseLocalDate(res.date)
+      return resDate >= weekAgo
+    })
+  } else if (selectedDateRange === 'month') {
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+    filtered = filtered.filter((res) => {
+      const resDate = parseLocalDate(res.date)
+      return resDate >= monthStart
+    })
+  }
+
+  // Ordenar por fecha
+  return filtered.sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date))
+}

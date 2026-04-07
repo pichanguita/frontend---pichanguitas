@@ -1,0 +1,1 @@
+export { securityConfig } from './securityConfig'

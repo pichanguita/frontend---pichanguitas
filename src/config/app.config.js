@@ -1,0 +1,8 @@
+export const APP_CONFIG = {
+  APP_VERSION: import.meta.env.VITE_APP_VERSION,
+  STORAGE_VERSION: import.meta.env.VITE_STORAGE_VERSION,
+  SESSION_TIMEOUT: Number(import.meta.env.VITE_SESSION_TIMEOUT),
+  MAX_LOGIN_ATTEMPTS: Number(import.meta.env.VITE_MAX_LOGIN_ATTEMPTS),
+  CONTACT_PHONE: import.meta.env.VITE_CONTACT_PHONE,
+  CONTACT_EMAIL: import.meta.env.VITE_CONTACT_EMAIL,
+}
