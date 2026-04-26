@@ -11,7 +11,6 @@ import {
   uploadPaymentVoucher,
 } from '../services/booking/reservationService'
 import { convertTimeRangesToStartEnd } from '../utils/timeRangeHelpers'
-import { fetchMyFreeHours } from '../services/customers/customersService'
 import {
   SWAL_CONFIG,
   validateVoucherFile,
@@ -68,14 +67,12 @@ const usePaymentFlow = (onComplete) => {
       loadFieldPaymentMethods(selectedField.id)
     }
   }, [selectedField?.id, loadFieldPaymentMethods])
-  // NOTA: Las horas gratis NO se auto-aplican.
-  // El cliente debe canjear sus promociones manualmente desde su perfil.
-  // Las promociones son de 1 hora completa y no pueden fraccionarse.
-
   // Calcular precios usando calculatePriceWithDiscount (que SÍ aplica precios especiales)
   const priceResult = calculatePriceWithDiscount(selectedField, selectedDate, selectedTimeRanges)
 
-  // Aplicar descuento de horas gratis
+  // Aplicar descuento de horas gratis seleccionadas por el cliente
+  // (toggle en ConfirmationPanel, pre-activado al entrar desde Promociones).
+  // Las promociones se canjean en horas completas (no fraccionables).
   const hoursSelected = selectedTimeRanges.length
   const freeHoursToApply = Math.min(freeHoursToUse, hoursSelected)
   const pricePerHour = selectedField?.pricePerHour || 0

@@ -5,159 +5,91 @@ import useGamificationStore from '../store/gamificationStore'
 import Swal from 'sweetalert2'
 import EmojiPicker from 'emoji-picker-react'
 
+const MAX_TIERS = 4
+const TIER_PRESETS = [
+  { tier: 'bronze', icon: '🥉', label: 'Bronce', color: '#cd7f32' },
+  { tier: 'silver', icon: '🥈', label: 'Plata', color: '#c0c0c0' },
+  { tier: 'gold', icon: '🥇', label: 'Oro', color: '#ffd700' },
+  { tier: 'platinum', icon: '💎', label: 'Platino', color: '#e5e4e2' },
+]
+
+/**
+ * Genera tiers iniciales (4 niveles) con valores escalonados.
+ * Los valores son sugerencias incrementales; el admin debe ajustarlos según el criterio.
+ */
+const buildInitialTiers = () =>
+  TIER_PRESETS.map((preset, idx) => ({
+    ...preset,
+    requiredValue: (idx + 1) * 5,
+  }))
+
 const BadgeEditor = ({ badge, onClose }) => {
-  const { createBadge, updateBadge } = useGamificationStore()
+  const { createBadge, updateBadge, criteria } = useGamificationStore()
 
-  // Máximo de niveles permitidos por insignia
-  const MAX_TIERS = 4
+  const defaultCriteriaId = criteria?.[0]?.id ?? null
 
-  // Configuración de valores sugeridos por criterio (4 niveles: Bronce, Plata, Oro, Platino)
-  const SUGGESTED_TIERS_BY_CRITERIA = {
-    reservations_completed: {
-      unit: 'reservas',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 5, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 15, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 30, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 50, color: '#e5e4e2' },
-      ],
-    },
-    total_hours: {
-      unit: 'horas',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 10, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 25, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 50, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 100, color: '#e5e4e2' },
-      ],
-    },
-    total_spent: {
-      unit: 'S/',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 100, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 300, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 500, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 1000, color: '#e5e4e2' },
-      ],
-    },
-    morning_games: {
-      unit: 'partidos',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 3, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 8, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 15, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 25, color: '#e5e4e2' },
-      ],
-    },
-    night_games: {
-      unit: 'partidos',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 3, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 8, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 15, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 25, color: '#e5e4e2' },
-      ],
-    },
-    consecutive_weeks: {
-      unit: 'semanas',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 2, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 4, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 8, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 12, color: '#e5e4e2' },
-      ],
-    },
-    same_field_loyalty: {
-      unit: 'reservas',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 5, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 10, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 20, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 35, color: '#e5e4e2' },
-      ],
-    },
-    no_cancellations: {
-      unit: 'reservas',
-      tiers: [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 5, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 15, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 30, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 50, color: '#e5e4e2' },
-      ],
-    },
-  }
-
-  // Obtener tiers por defecto según criterio
-  const getDefaultTiers = (criteriaType) => {
-    return (
-      SUGGESTED_TIERS_BY_CRITERIA[criteriaType]?.tiers || [
-        { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 5, color: '#cd7f32' },
-        { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 10, color: '#c0c0c0' },
-        { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 20, color: '#ffd700' },
-        { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 50, color: '#e5e4e2' },
-      ]
-    )
-  }
-
-  // Obtener unidad de medida según criterio
-  const getCriteriaUnit = (criteriaType) => {
-    return SUGGESTED_TIERS_BY_CRITERIA[criteriaType]?.unit || ''
-  }
+  const findCriteria = (criteriaId) => (criteria || []).find((c) => c.id === criteriaId) || null
 
   const [formData, setFormData] = useState({
     name: '',
     icon: '🏆',
     description: '',
-    criteriaType: 'reservations_completed',
+    criteriaId: defaultCriteriaId,
     isActive: true,
-    tiers: getDefaultTiers('reservations_completed'),
+    tiers: buildInitialTiers(),
   })
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [errors, setErrors] = useState({})
 
+  // Inicializar el formulario sólo cuando cambia la insignia en edición.
   useEffect(() => {
     if (badge) {
+      const resolvedCriteriaId = badge.criteriaId ?? badge.criteria_id ?? defaultCriteriaId
       setFormData({
         name: badge.name || '',
         icon: badge.icon || '🏆',
         description: badge.description || '',
-        criteriaType: badge.criteriaType || badge.criteria_type || 'reservations_completed',
+        criteriaId: resolvedCriteriaId,
         isActive:
           badge.isActive !== undefined
             ? badge.isActive
             : badge.is_active !== undefined
               ? badge.is_active
               : true,
-        tiers: badge.tiers || [
-          { tier: 'bronze', icon: '🥉', label: 'Bronce', requiredValue: 5, color: '#cd7f32' },
-          { tier: 'silver', icon: '🥈', label: 'Plata', requiredValue: 10, color: '#c0c0c0' },
-          { tier: 'gold', icon: '🥇', label: 'Oro', requiredValue: 20, color: '#ffd700' },
-          { tier: 'platinum', icon: '💎', label: 'Platino', requiredValue: 50, color: '#e5e4e2' },
-        ],
+        tiers:
+          badge.tiers && badge.tiers.length > 0
+            ? badge.tiers.map((t) => ({
+                tier: t.tier,
+                icon: t.icon,
+                label: t.label,
+                requiredValue: t.requiredValue ?? t.required_value ?? 0,
+                color: t.color,
+              }))
+            : buildInitialTiers(),
       })
+    } else if (!formData.criteriaId && defaultCriteriaId) {
+      setFormData((prev) => ({ ...prev, criteriaId: defaultCriteriaId }))
     }
-  }, [badge])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [badge?.id, defaultCriteriaId])
+
+  const selectedCriteria = findCriteria(formData.criteriaId)
+  const criteriaUnit = selectedCriteria?.unit || ''
+
+  const handleCriteriaChange = (newId) => {
+    setFormData((prev) => ({ ...prev, criteriaId: newId }))
+  }
 
   const validate = () => {
     const newErrors = {}
-
-    if (!formData.name?.trim()) {
-      newErrors.name = 'El nombre es obligatorio'
-    }
-
-    if (!formData.description?.trim()) {
-      newErrors.description = 'La descripción es obligatoria'
-    }
+    if (!formData.name?.trim()) newErrors.name = 'El nombre es obligatorio'
+    if (!formData.description?.trim()) newErrors.description = 'La descripción es obligatoria'
+    if (!formData.criteriaId) newErrors.criteriaId = 'Selecciona un criterio de asignación'
 
     const tiers = formData.tiers || []
-    if (tiers.length === 0) {
-      newErrors.tiers = 'Debe tener al menos un nivel'
-    }
-
-    if (tiers.length > MAX_TIERS) {
-      newErrors.tiers = `Máximo ${MAX_TIERS} niveles permitidos`
-    }
+    if (tiers.length === 0) newErrors.tiers = 'Debe tener al menos un nivel'
+    if (tiers.length > MAX_TIERS) newErrors.tiers = `Máximo ${MAX_TIERS} niveles permitidos`
 
     tiers.forEach((tier, index) => {
       if (!tier.requiredValue || tier.requiredValue <= 0) {
@@ -211,8 +143,6 @@ const BadgeEditor = ({ badge, onClose }) => {
 
   const handleAddTier = () => {
     const currentTiers = formData.tiers || []
-
-    // Limitar a máximo 4 niveles
     if (currentTiers.length >= MAX_TIERS) {
       Swal.fire({
         icon: 'warning',
@@ -224,27 +154,19 @@ const BadgeEditor = ({ badge, onClose }) => {
     }
 
     const lastValue = currentTiers[currentTiers.length - 1]?.requiredValue || 0
-    const increment = formData.criteriaType === 'total_spent' ? 100 : 10
-
-    // Nombres de niveles predeterminados
-    const tierNames = ['bronze', 'silver', 'gold', 'platinum']
-    const tierLabels = ['Bronce', 'Plata', 'Oro', 'Platino']
-    const tierIcons = ['🥉', '🥈', '🥇', '💎']
-    const tierColors = ['#cd7f32', '#c0c0c0', '#ffd700', '#e5e4e2']
-
     const nextIndex = currentTiers.length
+    const preset = TIER_PRESETS[nextIndex] || {
+      tier: `tier_${nextIndex + 1}`,
+      icon: '⭐',
+      label: `Nivel ${nextIndex + 1}`,
+      color: '#3b82f6',
+    }
 
     setFormData({
       ...formData,
       tiers: [
         ...currentTiers,
-        {
-          tier: tierNames[nextIndex] || `tier_${nextIndex + 1}`,
-          icon: tierIcons[nextIndex] || '⭐',
-          label: tierLabels[nextIndex] || `Nivel ${nextIndex + 1}`,
-          requiredValue: lastValue + increment,
-          color: tierColors[nextIndex] || '#3b82f6',
-        },
+        { ...preset, requiredValue: Math.max(lastValue + 1, lastValue * 2) },
       ],
     })
   }
@@ -278,7 +200,6 @@ const BadgeEditor = ({ badge, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       >
-        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h3 className="text-2xl font-bold text-gray-900">
             {badge ? 'Editar Insignia' : 'Crear Nueva Insignia'}
@@ -288,9 +209,7 @@ const BadgeEditor = ({ badge, onClose }) => {
           </button>
         </div>
 
-        {/* Form */}
         <div className="p-6 space-y-6">
-          {/* Nombre e Icono */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -332,7 +251,6 @@ const BadgeEditor = ({ badge, onClose }) => {
             </div>
           </div>
 
-          {/* Descripción */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Descripción *</label>
             <textarea
@@ -349,7 +267,33 @@ const BadgeEditor = ({ badge, onClose }) => {
             )}
           </div>
 
-          {/* Niveles/Tiers */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Criterio de asignación *
+            </label>
+            <select
+              value={formData.criteriaId ?? ''}
+              onChange={(e) => handleCriteriaChange(parseInt(e.target.value, 10) || null)}
+              className={`w-full px-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white ${
+                errors.criteriaId ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="" disabled>
+                Selecciona un criterio…
+              </option>
+              {(criteria || []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {selectedCriteria?.description ||
+                'El sistema usa este criterio para decidir cuándo desbloquear la insignia automáticamente.'}
+            </p>
+            {errors.criteriaId && <p className="text-red-500 text-sm mt-1">{errors.criteriaId}</p>}
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -357,9 +301,17 @@ const BadgeEditor = ({ badge, onClose }) => {
                   Niveles de la Insignia *
                 </label>
                 <span className="text-xs text-gray-500">
-                  Unidad: <strong>{getCriteriaUnit(formData.criteriaType)}</strong>
-                  {' • '}
-                  <span className={(formData.tiers?.length || 0) >= MAX_TIERS ? 'text-amber-600 font-medium' : ''}>
+                  {criteriaUnit && (
+                    <>
+                      Unidad: <strong>{criteriaUnit}</strong>
+                      {' • '}
+                    </>
+                  )}
+                  <span
+                    className={
+                      (formData.tiers?.length || 0) >= MAX_TIERS ? 'text-amber-600 font-medium' : ''
+                    }
+                  >
                     {formData.tiers?.length || 0}/{MAX_TIERS} niveles
                   </span>
                 </span>
@@ -409,16 +361,22 @@ const BadgeEditor = ({ badge, onClose }) => {
                           type="number"
                           value={tier.requiredValue}
                           onChange={(e) =>
-                            handleTierChange(index, 'requiredValue', parseInt(e.target.value) || 0)
+                            handleTierChange(
+                              index,
+                              'requiredValue',
+                              parseInt(e.target.value, 10) || 0
+                            )
                           }
                           className={`w-20 px-3 py-1 border-2 rounded-lg ${
                             errors[`tier_${index}`] ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="Valor"
                         />
-                        <span className="text-sm text-gray-600 whitespace-nowrap">
-                          {getCriteriaUnit(formData.criteriaType)}
-                        </span>
+                        {criteriaUnit && (
+                          <span className="text-sm text-gray-600 whitespace-nowrap">
+                            {criteriaUnit}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -449,7 +407,6 @@ const BadgeEditor = ({ badge, onClose }) => {
             {errors.tiers && <p className="text-red-500 text-sm mt-1">{errors.tiers}</p>}
           </div>
 
-          {/* Estado Activo */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div>
               <p className="font-medium text-gray-900">Insignia Activa</p>
@@ -473,7 +430,6 @@ const BadgeEditor = ({ badge, onClose }) => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
           <button
             onClick={onClose}

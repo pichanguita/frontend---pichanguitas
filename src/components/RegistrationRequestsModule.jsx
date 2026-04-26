@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import Swal from 'sweetalert2'
 import {
   UserPlus,
   XCircle,
@@ -6,7 +7,6 @@ import {
   FileText,
   Image,
   Download,
-  ExternalLink,
   Paperclip,
   User,
   MapPin,
@@ -19,6 +19,10 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRegistrationRequests } from '../hooks/useRegistrationRequests'
 import { getStatusBadge, getFullName } from '../utils/registration/registrationHelpers.jsx'
+import {
+  downloadAuthenticatedFile,
+  fetchAuthenticatedBlob,
+} from '../utils/secureDownload'
 import RegistrationHeader from './registration/RegistrationHeader'
 import RegistrationFilters from './registration/RegistrationFilters'
 import RegistrationTable from './registration/RegistrationTable'
@@ -43,24 +47,86 @@ const RegistrationRequestsModule = () => {
     handleViewDocuments,
   } = useRegistrationRequests()
 
-  // Función para descargar archivos sin navegar
-  const handleDownloadFile = async (url, filename) => {
+  // Mapa de previews de fotos: fileId → blobUrl firmado por token
+  const [photoPreviews, setPhotoPreviews] = useState({})
+
+  // Preview inline en modal: { file, blobUrl, loading, error }
+  const [filePreview, setFilePreview] = useState(null)
+
+  // Cargar previews autenticadas cuando se abre el modal
+  useEffect(() => {
+    if (!showDocumentsModal) return
+    const photos = selectedDocuments?.photos || []
+    if (photos.length === 0) return
+
+    const createdBlobs = []
+    let cancelled = false
+
+    ;(async () => {
+      const next = {}
+      for (const photo of photos) {
+        try {
+          const { blobUrl } = await fetchAuthenticatedBlob(photo.downloadUrl + '?inline=1')
+          if (cancelled) {
+            URL.revokeObjectURL(blobUrl)
+            return
+          }
+          next[photo.fileId] = blobUrl
+          createdBlobs.push(blobUrl)
+        } catch (err) {
+          console.error('Error cargando preview de foto:', err)
+        }
+      }
+      if (!cancelled) setPhotoPreviews(next)
+    })()
+
+    return () => {
+      cancelled = true
+      createdBlobs.forEach((b) => URL.revokeObjectURL(b))
+      setPhotoPreviews({})
+    }
+  }, [showDocumentsModal, selectedDocuments])
+
+  // Liberar blob URL del preview al cerrar
+  useEffect(() => {
+    return () => {
+      if (filePreview?.blobUrl) URL.revokeObjectURL(filePreview.blobUrl)
+    }
+  }, [filePreview])
+
+  const handleDownloadFile = async (file) => {
     try {
-      const response = await fetch(url)
-      const blob = await response.blob()
-      const blobUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(blobUrl)
+      await downloadAuthenticatedFile(file.downloadUrl, file.name)
     } catch (error) {
       console.error('Error al descargar archivo:', error)
-      // Fallback: abrir en nueva pestaña
-      window.open(url, '_blank')
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'No se pudo descargar el archivo.',
+        confirmButtonColor: '#ef4444',
+      })
     }
+  }
+
+  const handlePreviewFile = async (file) => {
+    setFilePreview({ file, blobUrl: null, loading: true, error: null })
+    try {
+      const { blobUrl } = await fetchAuthenticatedBlob(file.downloadUrl + '?inline=1')
+      setFilePreview({ file, blobUrl, loading: false, error: null })
+    } catch (error) {
+      console.error('Error al cargar preview:', error)
+      setFilePreview({
+        file,
+        blobUrl: null,
+        loading: false,
+        error: error.message || 'No se pudo cargar el archivo',
+      })
+    }
+  }
+
+  const closePreview = () => {
+    if (filePreview?.blobUrl) URL.revokeObjectURL(filePreview.blobUrl)
+    setFilePreview(null)
   }
 
   return (
@@ -342,38 +408,39 @@ const RegistrationRequestsModule = () => {
                       {selectedDocuments.documents.map((doc) => (
                         <div
                           key={doc.id}
-                          className="border rounded-lg p-4 hover:shadow-md transition"
+                          className="border rounded-lg p-4 hover:shadow-md transition flex flex-col gap-3"
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3 flex-1">
-                              <div className="p-2 bg-secondary-100 rounded-lg">
-                                <FileText className="w-6 h-6 text-secondary-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-secondary-900 truncate">
-                                  {doc.name}
-                                </p>
-                                <p className="text-xs text-secondary-500 mt-1">
-                                  {(doc.size / 1024).toFixed(1)} KB
-                                </p>
-                              </div>
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="p-2 bg-secondary-100 rounded-lg flex-shrink-0">
+                              <FileText className="w-6 h-6 text-secondary-600" />
                             </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleDownloadFile(doc.data, doc.name)}
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="font-medium text-secondary-900 break-all leading-tight"
+                                title={doc.name}
                               >
-                                <Download className="w-4 h-4" />
-                              </button>
-                              <a
-                                href={doc.data}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
+                                {doc.name}
+                              </p>
+                              <p className="text-xs text-secondary-500 mt-1">
+                                {(doc.size / 1024).toFixed(1)} KB
+                              </p>
                             </div>
+                          </div>
+                          <div className="flex gap-2 border-t pt-3">
+                            <button
+                              onClick={() => handlePreviewFile(doc)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition"
+                            >
+                              <Eye className="w-4 h-4" />
+                              Ver
+                            </button>
+                            <button
+                              onClick={() => handleDownloadFile(doc)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                            >
+                              <Download className="w-4 h-4" />
+                              Descargar
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -391,31 +458,42 @@ const RegistrationRequestsModule = () => {
                       {selectedDocuments.photos.map((photo) => (
                         <div key={photo.id} className="group relative">
                           <div className="aspect-square bg-secondary-100 rounded-lg overflow-hidden">
-                            <img
-                              src={photo.data}
-                              alt={photo.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
+                            {photoPreviews[photo.fileId] ? (
+                              <img
+                                src={photoPreviews[photo.fileId]}
+                                alt={photo.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xs text-secondary-500">
+                                Cargando...
+                              </div>
+                            )}
                           </div>
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
                             <div className="flex gap-2">
                               <button
-                                onClick={() => handleDownloadFile(photo.data, photo.name)}
-                                className="p-2 bg-white text-secondary-700 rounded-lg"
+                                onClick={() => handlePreviewFile(photo)}
+                                className="p-2 bg-white text-secondary-700 rounded-lg hover:bg-primary-50 hover:text-primary-700"
+                                title="Ver"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDownloadFile(photo)}
+                                className="p-2 bg-white text-secondary-700 rounded-lg hover:bg-blue-50 hover:text-blue-700"
+                                title="Descargar"
                               >
                                 <Download className="w-4 h-4" />
                               </button>
-                              <a
-                                href={photo.data}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 bg-white text-secondary-700 rounded-lg"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
                             </div>
                           </div>
-                          <p className="text-xs text-secondary-600 mt-2 truncate">{photo.name}</p>
+                          <p
+                            className="text-xs text-secondary-600 mt-2 break-all leading-tight"
+                            title={photo.name}
+                          >
+                            {photo.name}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -427,6 +505,120 @@ const RegistrationRequestsModule = () => {
                     <Paperclip className="w-12 h-12 text-secondary-300 mx-auto mb-3" />
                     <p className="text-secondary-500">No hay documentos adjuntos</p>
                   </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de preview de archivo (in-app, sin abrir pestañas) */}
+      <AnimatePresence>
+        {filePreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[70] p-4"
+            onClick={closePreview}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 p-4 border-b">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="p-2 bg-secondary-100 rounded-lg flex-shrink-0">
+                    {filePreview.file.type?.startsWith('image/') ? (
+                      <Image className="w-5 h-5 text-secondary-600" />
+                    ) : (
+                      <FileText className="w-5 h-5 text-secondary-600" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="font-semibold text-secondary-900 break-all leading-tight"
+                      title={filePreview.file.name}
+                    >
+                      {filePreview.file.name}
+                    </p>
+                    <p className="text-xs text-secondary-500 mt-0.5">
+                      {(filePreview.file.size / 1024).toFixed(1)} KB ·{' '}
+                      {filePreview.file.type || 'archivo'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleDownloadFile(filePreview.file)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                  >
+                    <Download className="w-4 h-4" />
+                    Descargar
+                  </button>
+                  <button
+                    onClick={closePreview}
+                    className="p-2 hover:bg-secondary-100 rounded-lg"
+                    title="Cerrar"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto bg-secondary-50">
+                {filePreview.loading && (
+                  <div className="h-full min-h-[400px] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-secondary-600">Cargando documento...</p>
+                    </div>
+                  </div>
+                )}
+
+                {filePreview.error && (
+                  <div className="h-full min-h-[400px] flex items-center justify-center p-6">
+                    <div className="text-center">
+                      <XCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-red-700">No se pudo cargar</p>
+                      <p className="text-xs text-secondary-600 mt-1">{filePreview.error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {filePreview.blobUrl && !filePreview.error && (
+                  <>
+                    {filePreview.file.type?.startsWith('image/') ? (
+                      <div className="flex items-center justify-center min-h-[400px] p-4">
+                        <img
+                          src={filePreview.blobUrl}
+                          alt={filePreview.file.name}
+                          className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-md"
+                        />
+                      </div>
+                    ) : filePreview.file.type === 'application/pdf' ? (
+                      <iframe
+                        src={filePreview.blobUrl}
+                        title={filePreview.file.name}
+                        className="w-full h-[75vh] border-0"
+                      />
+                    ) : (
+                      <div className="h-full min-h-[400px] flex items-center justify-center p-6">
+                        <div className="text-center">
+                          <FileText className="w-12 h-12 text-secondary-300 mx-auto mb-3" />
+                          <p className="text-sm text-secondary-700">
+                            Este tipo de archivo no se puede previsualizar.
+                          </p>
+                          <p className="text-xs text-secondary-500 mt-1">
+                            Usa el botón Descargar para abrirlo en tu equipo.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </motion.div>

@@ -506,8 +506,12 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
       })
 
       if (result.isConfirmed) {
-        // Si es una imagen subida (local o Wasabi), eliminar de BD
-        if (imageToRemove.startsWith('/uploads/') || imageToRemove.includes('wasabisys.com')) {
+        // Si es una imagen gestionada (proxy /api/media, Wasabi o legacy /uploads), eliminar de BD
+        if (
+          imageToRemove.startsWith('/api/media/') ||
+          imageToRemove.includes('wasabisys.com') ||
+          imageToRemove.startsWith('/uploads/')
+        ) {
           try {
             // Obtener todas las imágenes para encontrar el ID
             const token = getToken()

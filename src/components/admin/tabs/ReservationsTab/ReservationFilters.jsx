@@ -1,16 +1,13 @@
-import { useState, useEffect } from 'react'
-import { Filter, Search, Loader2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { Filter, Search } from 'lucide-react'
 import { DEFAULT_VALUES, BUTTON_TEXTS, FILTER_TEXTS } from '../../../../constants'
-import {
-  fetchDepartmentsWithFields,
-  fetchProvincesWithFieldsByDepartment,
-  fetchDistrictsWithFieldsByProvince,
-} from '../../../../services/locations/locationsService'
 
 /**
  * Componente de filtros para el tab de Reservas
  *
- * ACTUALIZADO: Usa endpoints que solo retornan ubicaciones con canchas registradas
+ * Las ubicaciones (departamentos, provincias, distritos) se derivan directamente
+ * de las canchas visibles para el usuario (visibleFields). Esto asegura que un
+ * admin de cancha solo vea las ubicaciones donde administra canchas.
  */
 export const ReservationFilters = ({
   selectedFieldFilter,
@@ -21,72 +18,49 @@ export const ReservationFilters = ({
   visibleFields,
   onFilterChange,
 }) => {
-  // Estado para ubicaciones con canchas
-  const [departments, setDepartments] = useState([])
-  const [provinces, setProvinces] = useState([])
-  const [districts, setDistricts] = useState([])
-  const [isLoadingDepts, setIsLoadingDepts] = useState(false)
-  const [isLoadingProvs, setIsLoadingProvs] = useState(false)
-  const [isLoadingDists, setIsLoadingDists] = useState(false)
+  const departments = useMemo(() => {
+    const map = new Map()
+    visibleFields.forEach((field) => {
+      if (!field.departamento) return
+      const count = map.get(field.departamento) || 0
+      map.set(field.departamento, count + 1)
+    })
+    return Array.from(map.entries())
+      .map(([name, fields_count]) => ({ name, fields_count }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [visibleFields])
 
-  // Cargar departamentos con canchas al montar el componente
-  useEffect(() => {
-    const loadDepartments = async () => {
-      setIsLoadingDepts(true)
-      try {
-        const depts = await fetchDepartmentsWithFields()
-        setDepartments(depts)
-      } catch (error) {
-        console.error('Error cargando departamentos:', error)
-        setDepartments([])
-      } finally {
-        setIsLoadingDepts(false)
-      }
-    }
-    loadDepartments()
-  }, [])
+  const provinces = useMemo(() => {
+    if (!filterDepartment || filterDepartment === DEFAULT_VALUES.ALL) return []
+    const map = new Map()
+    visibleFields.forEach((field) => {
+      if (field.departamento !== filterDepartment || !field.provincia) return
+      const count = map.get(field.provincia) || 0
+      map.set(field.provincia, count + 1)
+    })
+    return Array.from(map.entries())
+      .map(([name, fields_count]) => ({ name, fields_count }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [visibleFields, filterDepartment])
 
-  // Cargar provincias cuando cambia el departamento
-  useEffect(() => {
-    const loadProvinces = async () => {
-      if (!filterDepartment || filterDepartment === DEFAULT_VALUES.ALL) {
-        setProvinces([])
+  const districts = useMemo(() => {
+    if (!filterProvince || filterProvince === DEFAULT_VALUES.ALL) return []
+    const map = new Map()
+    visibleFields.forEach((field) => {
+      if (
+        field.departamento !== filterDepartment ||
+        field.provincia !== filterProvince ||
+        !field.distrito
+      ) {
         return
       }
-      setIsLoadingProvs(true)
-      try {
-        const provs = await fetchProvincesWithFieldsByDepartment(filterDepartment)
-        setProvinces(provs)
-      } catch (error) {
-        console.error('Error cargando provincias:', error)
-        setProvinces([])
-      } finally {
-        setIsLoadingProvs(false)
-      }
-    }
-    loadProvinces()
-  }, [filterDepartment])
-
-  // Cargar distritos cuando cambia la provincia
-  useEffect(() => {
-    const loadDistricts = async () => {
-      if (!filterProvince || filterProvince === DEFAULT_VALUES.ALL) {
-        setDistricts([])
-        return
-      }
-      setIsLoadingDists(true)
-      try {
-        const dists = await fetchDistrictsWithFieldsByProvince(filterProvince)
-        setDistricts(dists)
-      } catch (error) {
-        console.error('Error cargando distritos:', error)
-        setDistricts([])
-      } finally {
-        setIsLoadingDists(false)
-      }
-    }
-    loadDistricts()
-  }, [filterProvince])
+      const count = map.get(field.distrito) || 0
+      map.set(field.distrito, count + 1)
+    })
+    return Array.from(map.entries())
+      .map(([name, fields_count]) => ({ name, fields_count }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [visibleFields, filterDepartment, filterProvince])
 
   const hasActiveFilters =
     selectedFieldFilter !== DEFAULT_VALUES.ALL ||
@@ -126,77 +100,56 @@ export const ReservationFilters = ({
         </select>
 
         {/* Filtro por departamento */}
-        <div className="relative">
-          <select
-            value={filterDepartment}
-            onChange={(e) => {
-              onFilterChange.setFilterDepartment(e.target.value)
-              onFilterChange.setFilterProvince(DEFAULT_VALUES.ALL)
-              onFilterChange.setFilterDistrict(DEFAULT_VALUES.ALL)
-            }}
-            disabled={isLoadingDepts}
-            className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-100"
-          >
-            <option value={DEFAULT_VALUES.ALL}>
-              {isLoadingDepts ? 'Cargando...' : FILTER_TEXTS.ALL_DEPARTMENTS}
+        <select
+          value={filterDepartment}
+          onChange={(e) => {
+            onFilterChange.setFilterDepartment(e.target.value)
+            onFilterChange.setFilterProvince(DEFAULT_VALUES.ALL)
+            onFilterChange.setFilterDistrict(DEFAULT_VALUES.ALL)
+          }}
+          disabled={departments.length === 0}
+          className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-100 disabled:cursor-not-allowed"
+        >
+          <option value={DEFAULT_VALUES.ALL}>{FILTER_TEXTS.ALL_DEPARTMENTS}</option>
+          {departments.map((dept) => (
+            <option key={dept.name} value={dept.name}>
+              {dept.name} ({dept.fields_count})
             </option>
-            {departments.map((dept) => (
-              <option key={dept.id || dept.name} value={dept.name}>
-                {dept.name} {dept.fields_count ? `(${dept.fields_count})` : ''}
-              </option>
-            ))}
-          </select>
-          {isLoadingDepts && (
-            <Loader2 className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 animate-spin" />
-          )}
-        </div>
+          ))}
+        </select>
 
         {/* Filtro por provincia */}
-        <div className="relative">
-          <select
-            value={filterProvince}
-            onChange={(e) => {
-              onFilterChange.setFilterProvince(e.target.value)
-              onFilterChange.setFilterDistrict(DEFAULT_VALUES.ALL)
-            }}
-            disabled={filterDepartment === DEFAULT_VALUES.ALL || isLoadingProvs}
-            className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-100 disabled:cursor-not-allowed"
-          >
-            <option value={DEFAULT_VALUES.ALL}>
-              {isLoadingProvs ? 'Cargando...' : FILTER_TEXTS.ALL_PROVINCES}
+        <select
+          value={filterProvince}
+          onChange={(e) => {
+            onFilterChange.setFilterProvince(e.target.value)
+            onFilterChange.setFilterDistrict(DEFAULT_VALUES.ALL)
+          }}
+          disabled={filterDepartment === DEFAULT_VALUES.ALL || provinces.length === 0}
+          className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-100 disabled:cursor-not-allowed"
+        >
+          <option value={DEFAULT_VALUES.ALL}>{FILTER_TEXTS.ALL_PROVINCES}</option>
+          {provinces.map((prov) => (
+            <option key={prov.name} value={prov.name}>
+              {prov.name} ({prov.fields_count})
             </option>
-            {provinces.map((prov) => (
-              <option key={prov.id || prov.name} value={prov.name}>
-                {prov.name} {prov.fields_count ? `(${prov.fields_count})` : ''}
-              </option>
-            ))}
-          </select>
-          {isLoadingProvs && (
-            <Loader2 className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 animate-spin" />
-          )}
-        </div>
+          ))}
+        </select>
 
         {/* Filtro por distrito */}
-        <div className="relative">
-          <select
-            value={filterDistrict}
-            onChange={(e) => onFilterChange.setFilterDistrict(e.target.value)}
-            disabled={filterProvince === DEFAULT_VALUES.ALL || isLoadingDists}
-            className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-100 disabled:cursor-not-allowed"
-          >
-            <option value={DEFAULT_VALUES.ALL}>
-              {isLoadingDists ? 'Cargando...' : FILTER_TEXTS.ALL_DISTRICTS}
+        <select
+          value={filterDistrict}
+          onChange={(e) => onFilterChange.setFilterDistrict(e.target.value)}
+          disabled={filterProvince === DEFAULT_VALUES.ALL || districts.length === 0}
+          className="w-full px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-100 disabled:cursor-not-allowed"
+        >
+          <option value={DEFAULT_VALUES.ALL}>{FILTER_TEXTS.ALL_DISTRICTS}</option>
+          {districts.map((dist) => (
+            <option key={dist.name} value={dist.name}>
+              {dist.name} ({dist.fields_count})
             </option>
-            {districts.map((dist) => (
-              <option key={dist.id || dist.name} value={dist.name}>
-                {dist.name} {dist.fields_count ? `(${dist.fields_count})` : ''}
-              </option>
-            ))}
-          </select>
-          {isLoadingDists && (
-            <Loader2 className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400 animate-spin" />
-          )}
-        </div>
+          ))}
+        </select>
 
         {/* Búsqueda por teléfono */}
         <div className="relative">

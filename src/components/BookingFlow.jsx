@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import Swal from 'sweetalert2'
@@ -88,6 +88,7 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
     loadReservations,
     freeHoursToUse,
     setFreeHoursToUse,
+    availableFreeHours,
   } = useBookingStore()
 
   // Obtener sportTypes directamente del fieldStore
@@ -290,6 +291,25 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
     }
   }, [startTime, endTime, selectedDistrict, selectedSportTypes, selectedDate])
 
+  // Auto-aplicar horas gratis cuando el cliente llega a la confirmación.
+  // Si el cliente desactiva el toggle, su decisión persiste hasta que cambie de paso.
+  // Una vez en el step 3, la auto-aplicación se ejecuta una sola vez por entrada.
+  const freeHoursAutoAppliedRef = useRef(false)
+  useEffect(() => {
+    if (currentStep !== 3) {
+      freeHoursAutoAppliedRef.current = false
+      return
+    }
+    if (
+      !freeHoursAutoAppliedRef.current &&
+      availableFreeHours > 0 &&
+      freeHoursToUse === 0
+    ) {
+      setFreeHoursToUse(availableFreeHours)
+      freeHoursAutoAppliedRef.current = true
+    }
+  }, [currentStep, availableFreeHours, freeHoursToUse, setFreeHoursToUse])
+
   // Configuración de pasos
   const steps = [
     {
@@ -419,8 +439,9 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
                 onPhoneNumberChange={setPhoneNumber}
                 onCustomerSelect={handleCustomerSelect}
                 onConfirmReservation={handlePhoneSubmit}
-                freeHoursAvailable={freeHoursToUse}
-                onFreeHoursUsed={() => setFreeHoursToUse(0)}
+                availableFreeHours={availableFreeHours}
+                freeHoursToUse={freeHoursToUse}
+                onToggleFreeHours={(use) => setFreeHoursToUse(use ? availableFreeHours : 0)}
               />
             )}
           </div>

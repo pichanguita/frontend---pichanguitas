@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { API_CONFIG, getAuthHeaders } from '../config/api.config'
+import { resolveMediaUrl } from '../utils/mediaUrl'
 
 // ========================================
 // ESQUEMAS POR DEFECTO (antes en data/config)
@@ -164,12 +165,7 @@ const useConfigStore = create(
                   }
                 } else {
                   // Es una imagen
-                  let imageUrl = data.data[key].url
-                  // Si la URL es relativa (empieza con /), agregar el BASE_URL
-                  // Las URLs de Wasabi ya son absolutas (https://s3...)
-                  if (imageUrl.startsWith('/uploads/')) {
-                    imageUrl = `${API_CONFIG.BASE_URL}${imageUrl}`
-                  }
+                  const imageUrl = resolveMediaUrl(data.data[key].url)
 
                   backendImages[key] = {
                     url: imageUrl,
@@ -244,12 +240,7 @@ const useConfigStore = create(
           }
 
           if (data.success) {
-            // Actualizar store local con la nueva imagen
-            // Las URLs de Wasabi ya son absolutas, las antiguas relativas necesitan BASE_URL
-            let imageUrl = data.data.url
-            if (imageUrl && imageUrl.startsWith('/uploads/')) {
-              imageUrl = `${API_CONFIG.BASE_URL}${imageUrl}`
-            }
+            const imageUrl = resolveMediaUrl(data.data.url)
             set((state) => ({
               images: {
                 ...state.images,
@@ -300,12 +291,7 @@ const useConfigStore = create(
           }
 
           if (data.success) {
-            // Si la URL es relativa (empieza con /), agregar el BASE_URL
-            // Las URLs de Wasabi (https://s3...) ya son absolutas
-            let imageUrl = data.data.url
-            if (imageUrl && imageUrl.startsWith('/uploads/')) {
-              imageUrl = `${API_CONFIG.BASE_URL}${imageUrl}`
-            }
+            const imageUrl = resolveMediaUrl(data.data.url)
 
             // Actualizar store local
             set((state) => ({

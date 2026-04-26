@@ -71,10 +71,6 @@ export const createFieldFacade = (set, get) => ({
     return useFieldStore.getState().rejectField(fieldId, rejectedBy, reason)
   },
 
-  getPendingFields: () => {
-    return useFieldStore.getState().getPendingFields()
-  },
-
   getFieldsByApprovalStatus: (status) => {
     return useFieldStore.getState().getFieldsByApprovalStatus(status)
   },

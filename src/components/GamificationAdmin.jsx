@@ -14,19 +14,10 @@ const GamificationAdmin = () => {
   const [topUsers, setTopUsers] = useState([])
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false)
 
-  const {
-    badges,
-    isActive,
-    deleteBadge,
-    updateConfig,
-    getCriteriaTypes,
-    loadCriteria,
-    loadBadges,
-    loadConfig,
-  } = useGamificationStore()
+  const { badges, isActive, deleteBadge, updateConfig, loadCriteria, loadBadges, loadConfig } =
+    useGamificationStore()
 
   const { token } = useAuthStore()
-  const criteriaTypes = getCriteriaTypes()
 
   // Cargar criterios, badges y configuración al montar el componente
   useEffect(() => {
@@ -188,9 +179,7 @@ const GamificationAdmin = () => {
                     <div className="text-4xl">{badge.icon}</div>
                     <div>
                       <h3 className="font-bold text-gray-900">{badge.name}</h3>
-                      <p className="text-xs text-gray-500">
-                        {criteriaTypes[badge.criteriaType]?.label}
-                      </p>
+                      <p className="text-xs text-gray-500">{badge.criteriaName || ''}</p>
                     </div>
                   </div>
                   <span
@@ -217,7 +206,7 @@ const GamificationAdmin = () => {
                         {tier.icon} {tier.label}
                       </span>
                       <span className="font-bold">
-                        {tier.requiredValue} {badge.criteriaType === 'total_spent' ? 'S/' : ''}
+                        {tier.requiredValue} {badge.criteriaUnit || ''}
                       </span>
                     </div>
                   ))}

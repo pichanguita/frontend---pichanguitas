@@ -56,7 +56,12 @@ const ConfirmationPanel = ({
   onCustomerSelect,
   onConfirmReservation,
   // Horas gratis
-  freeHoursAvailable = 0,
+  // - availableFreeHours: saldo total del cliente (cargado del backend)
+  // - freeHoursToUse: cuántas se aplicarán a esta reserva (selección)
+  // - onToggleFreeHours(use: boolean): activa/desactiva el uso en esta reserva
+  availableFreeHours = 0,
+  freeHoursToUse = 0,
+  onToggleFreeHours,
 }) => {
   if (!selectedFieldForReservation) return null
 
@@ -345,6 +350,53 @@ const ConfirmationPanel = ({
                 </div>
               )}
 
+            {/* Toggle de horas gratis (solo si el cliente tiene saldo acumulado) */}
+            {availableFreeHours > 0 && onToggleFreeHours && (() => {
+              const hoursReserved = selectedTimeRanges.length
+              const hoursCovered = Math.min(availableFreeHours, hoursReserved)
+              const hoursToPay = Math.max(0, hoursReserved - hoursCovered)
+              const isOn = freeHoursToUse > 0
+              return (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Gift className="w-6 h-6 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-amber-900">
+                      Tienes {availableFreeHours} hora{availableFreeHours > 1 ? 's' : ''} gratis
+                    </p>
+                    {isOn ? (
+                      hoursToPay > 0 ? (
+                        <p className="text-xs text-amber-700">
+                          Se cubrirá {hoursCovered} de las {hoursReserved} horas reservadas. Pagas
+                          la diferencia ({hoursToPay} hora{hoursToPay > 1 ? 's' : ''}).
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-700">
+                          Cubre las {hoursReserved} hora{hoursReserved > 1 ? 's' : ''} de esta
+                          reserva. No pagas nada adicional.
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-xs text-amber-700">
+                        Activa para usar {hoursCovered} hora{hoursCovered > 1 ? 's' : ''} de tu
+                        saldo en esta reserva.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={freeHoursToUse > 0}
+                    onChange={(e) => onToggleFreeHours(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+              )
+            })()}
+
             {/* Total a pagar destacado */}
             <div className="bg-primary-50 rounded-lg p-4 mb-4">
               {(() => {
@@ -354,9 +406,9 @@ const ConfirmationPanel = ({
                   selectedTimeRanges
                 )
 
-                // Calcular descuento por horas gratis
+                // Calcular descuento por horas gratis aplicadas
                 const hoursSelected = selectedTimeRanges.length
-                const freeHoursToApply = Math.min(freeHoursAvailable, hoursSelected)
+                const freeHoursToApply = Math.min(freeHoursToUse, hoursSelected)
                 const pricePerHour = selectedFieldForReservation.pricePerHour || 0
                 const freeHoursDiscount = freeHoursToApply * pricePerHour
                 const finalPriceWithFreeHours = Math.max(
@@ -366,8 +418,8 @@ const ConfirmationPanel = ({
 
                 return (
                   <div>
-                    {/* Mostrar banner de horas gratis si aplica */}
-                    {freeHoursAvailable > 0 && (
+                    {/* Banner cuando se aplican horas gratis */}
+                    {freeHoursToApply > 0 && (
                       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg p-3 mb-3 flex items-center gap-3">
                         <Gift className="w-6 h-6" />
                         <div>
@@ -382,7 +434,7 @@ const ConfirmationPanel = ({
                     )}
 
                     {/* Desglose del precio */}
-                    {freeHoursAvailable > 0 && (
+                    {freeHoursToApply > 0 && (
                       <div className="space-y-1 mb-3 text-sm">
                         <div className="flex justify-between text-secondary-600">
                           <span>
@@ -403,12 +455,12 @@ const ConfirmationPanel = ({
                         S/ {finalPriceWithFreeHours.toFixed(2)}
                       </span>
                     </div>
-                    {priceInfo.discount > 0 && !freeHoursAvailable && (
+                    {priceInfo.discount > 0 && freeHoursToApply === 0 && (
                       <div className="mt-2 text-sm text-amber-700 font-medium">
                         ¡Ahorraste S/ {priceInfo.discount.toFixed(2)}!
                       </div>
                     )}
-                    {freeHoursAvailable > 0 && finalPriceWithFreeHours === 0 && (
+                    {freeHoursToApply > 0 && finalPriceWithFreeHours === 0 && (
                       <div className="mt-2 text-sm text-green-600 font-bold">
                         ¡Esta reserva es GRATIS con tus horas acumuladas!
                       </div>

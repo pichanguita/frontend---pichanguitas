@@ -80,9 +80,9 @@ const Hero = ({ onOpenBooking }) => {
             className="text-center"
           >
             {/* Logo Pin Icon */}
-            <motion.div variants={itemVariants} className="mb-6">
-              <div className="flex items-center justify-center mb-6">
-                <div className="w-24 h-24 sm:w-32 sm:h-32">
+            <motion.div variants={itemVariants} className="mb-4 sm:mb-6">
+              <div className="flex items-center justify-center mb-4 sm:mb-6">
+                <div className="w-20 h-20 sm:w-32 sm:h-32">
                   <svg className="w-full h-full" viewBox="0 0 200 200" fill="none">
                     {/* Pin exterior - verde oscuro */}
                     <path
@@ -111,11 +111,11 @@ const Hero = ({ onOpenBooking }) => {
             </motion.div>
 
             {/* Title */}
-            <motion.div variants={itemVariants} className="mb-8">
-              <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black text-white leading-none mb-3 uppercase tracking-tight">
+            <motion.div variants={itemVariants} className="mb-6 sm:mb-8">
+              <h1 className="text-4xl xs:text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black text-white leading-none mb-2 sm:mb-3 uppercase tracking-tight break-words">
                 PICHANGUITA
               </h1>
-              <p className="text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-[0.3em] font-medium">
+              <p className="text-sm xs:text-base sm:text-3xl md:text-4xl text-white uppercase tracking-[0.2em] sm:tracking-[0.3em] font-medium">
                 RESERVA DE CANCHA
               </p>
             </motion.div>
@@ -123,7 +123,7 @@ const Hero = ({ onOpenBooking }) => {
             {/* Main Message */}
             <motion.h2
               variants={itemVariants}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6"
+              className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-4 sm:mb-6 px-2"
             >
               ¡Reserva tu cancha en segundos!
             </motion.h2>
@@ -131,7 +131,7 @@ const Hero = ({ onOpenBooking }) => {
             {/* Subtitle */}
             <motion.p
               variants={itemVariants}
-              className="text-lg sm:text-xl md:text-2xl text-white mb-10 max-w-3xl mx-auto"
+              className="text-base sm:text-xl md:text-2xl text-white mb-6 sm:mb-10 max-w-3xl mx-auto px-2"
             >
               Encuentra canchas libres en Abancay y todo Apurímac
             </motion.p>
@@ -139,26 +139,26 @@ const Hero = ({ onOpenBooking }) => {
             {/* CTA Buttons */}
             <motion.div
               variants={itemVariants}
-              className="flex flex-col justify-center items-center gap-4 sm:gap-6"
+              className="flex flex-col justify-center items-stretch sm:items-center gap-3 sm:gap-6 px-4 sm:px-0"
             >
               {/* Fila superior: Regístrate pelotero y Buscar canchas */}
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
+              <div className="flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-3 sm:gap-6">
                 {/* Botón Regístrate pelotero */}
                 <button
                   onClick={() => navigate('/login', { state: { activeTab: 'register-client' } })}
-                  className="group text-white px-8 py-4 sm:px-10 sm:py-5 rounded-full font-bold text-base sm:text-lg transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center space-x-3 uppercase"
+                  className="group text-white px-6 py-3 sm:px-10 sm:py-5 rounded-full font-bold text-sm sm:text-lg transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center space-x-2 sm:space-x-3 uppercase"
                   style={{ backgroundColor: '#3b82f6' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3b82f6')}
                 >
-                  <UserPlus className="w-5 h-5" />
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <span>Regístrate pelotero</span>
                 </button>
 
                 {/* Botón Buscar canchas */}
                 <button
                   onClick={onOpenBooking}
-                  className="group text-white px-8 py-4 sm:px-10 sm:py-5 rounded-full font-bold text-base sm:text-lg transition-all duration-300 shadow-2xl hover:shadow-green-500/50 flex items-center justify-center space-x-3 uppercase"
+                  className="group text-white px-6 py-3 sm:px-10 sm:py-5 rounded-full font-bold text-sm sm:text-lg transition-all duration-300 shadow-2xl hover:shadow-green-500/50 flex items-center justify-center space-x-2 sm:space-x-3 uppercase"
                   style={{ backgroundColor: '#22c55e' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#16a34a')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#22c55e')}
@@ -170,12 +170,12 @@ const Hero = ({ onOpenBooking }) => {
               {/* Fila inferior: Botón Registra tu cancha (amarillo) */}
               <button
                 onClick={() => navigate('/login', { state: { activeTab: 'register-field' } })}
-                className="group text-white px-8 py-4 sm:px-10 sm:py-5 rounded-full font-bold text-base sm:text-lg transition-all duration-300 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center space-x-3 uppercase"
+                className="group text-white px-6 py-3 sm:px-10 sm:py-5 rounded-full font-bold text-sm sm:text-lg transition-all duration-300 shadow-2xl hover:shadow-yellow-500/50 flex items-center justify-center space-x-2 sm:space-x-3 uppercase"
                 style={{ backgroundColor: '#ffd500' }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#eab308')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffd500')}
               >
-                <Building className="w-5 h-5" />
+                <Building className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                 <span>Registra tu cancha</span>
               </button>
             </motion.div>

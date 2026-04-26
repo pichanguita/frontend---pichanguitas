@@ -9,6 +9,7 @@ import {
   deleteAlertAPI,
 } from '../services/alerts/alertsService'
 import useAuthStore from './authStore'
+import { POLLING_CONFIG } from '../constants/businessConfig'
 
 // Variable global para el intervalo de polling (fuera del store para evitar re-renders)
 let pollingInterval = null
@@ -35,10 +36,10 @@ const useAlertStore = create(
       // ==================== POLLING FUNCTIONS ====================
 
       /**
-       * Iniciar polling de alertas (cada 30 segundos por defecto)
-       * @param {number} intervalMs - Intervalo en milisegundos (default: 30000)
+       * Iniciar polling de alertas
+       * @param {number} intervalMs - Intervalo en milisegundos (default: POLLING_CONFIG.ADMIN_COUNTERS_INTERVAL_MS)
        */
-      startPolling: (intervalMs = 30000) => {
+      startPolling: (intervalMs = POLLING_CONFIG.ADMIN_COUNTERS_INTERVAL_MS) => {
         // Evitar múltiples intervalos
         if (pollingInterval) {
           return
@@ -51,9 +52,6 @@ const useAlertStore = create(
 
         // Configurar polling periódico
         pollingInterval = setInterval(async () => {
-          const { alerts: currentAlerts } = get()
-          const currentIds = new Set(currentAlerts.map((a) => a.id))
-
           try {
             const newAlerts = await fetchAlerts({})
 

@@ -123,7 +123,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
       )}
 
       {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" autoComplete="off">
         {/* Username Field */}
         <div>
           <label className="block text-sm font-medium text-secondary-700 mb-2">
@@ -138,6 +138,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
               name="username"
               value={formData.username}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`
                   block w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-3 border-2 rounded-xl focus:outline-none transition-colors duration-200 text-sm sm:text-base
                   ${
@@ -170,6 +171,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
+              autoComplete="new-password"
               className={`
                   block w-full pl-9 sm:pl-10 pr-10 sm:pr-12 py-2 sm:py-3 border-2 rounded-xl focus:outline-none transition-colors duration-200 text-sm sm:text-base
                   ${

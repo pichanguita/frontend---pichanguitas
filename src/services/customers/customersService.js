@@ -141,30 +141,6 @@ export const fetchCustomerByPhone = async (phone) => {
 }
 
 /**
- * Obtener historial de promociones de un cliente
- * @param {string} customerId - ID del cliente
- * @returns {Promise<Array>} Historial de promociones
- */
-export const fetchCustomerPromotions = async (customerId) => {
-  try {
-    const response = await fetch(API_CONFIG.CUSTOMERS.GET_PROMOTIONS(customerId), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al obtener promociones')
-    }
-
-    return data.data || []
-  } catch (error) {
-    throw new Error(error.message || 'Error al obtener promociones')
-  }
-}
-
-/**
  * Crear un nuevo cliente en el backend
  * @param {Object} customerData - Datos del cliente
  * @param {string} token - Token de autenticación

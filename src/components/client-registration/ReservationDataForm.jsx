@@ -192,14 +192,16 @@ const ReservationDataForm = ({
           </select>
         </div>
 
-        {formData.paymentStatus === 'paid' && (
+        {(formData.paymentStatus === 'paid' || formData.paymentStatus === 'advance') && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
             <select
               name="paymentMethod"
               value={formData.paymentMethod}
               onChange={onChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                errors.paymentMethod ? 'border-red-500' : 'border-gray-300'
+              }`}
               disabled={isLoading}
             >
               <option value="">Seleccionar método</option>
@@ -209,6 +211,12 @@ const ReservationDataForm = ({
               <option value="transfer">Transferencia</option>
               <option value="card">Tarjeta</option>
             </select>
+            {errors.paymentMethod && (
+              <p className="text-red-500 text-sm mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {errors.paymentMethod}
+              </p>
+            )}
           </div>
         )}
 

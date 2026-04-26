@@ -19,8 +19,8 @@ import { motion } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
 import useFieldStore from '../store/modules/fieldStore'
 import Swal from 'sweetalert2'
-import { API_CONFIG } from '../config/api.config'
 import { parseLocalDate } from '../utils/dateFormatters'
+import { resolveMediaUrl } from '../utils/mediaUrl'
 
 /**
  * Formatea una fecha de reserva de manera segura para evitar desfase de zona horaria
@@ -783,12 +783,7 @@ const PendingReservationsModule = () => {
                           </span>
                           <button
                             onClick={() => {
-                              // Si empieza con http o /, ya tiene la ruta correcta
-                              const imageUrl = reservation.paymentVoucherUrl.startsWith('http')
-                                ? reservation.paymentVoucherUrl
-                                : reservation.paymentVoucherUrl.startsWith('/')
-                                  ? `${API_CONFIG.BASE_URL}${reservation.paymentVoucherUrl}`
-                                  : `${API_CONFIG.BASE_URL}/uploads/vouchers/${reservation.paymentVoucherUrl}`
+                              const imageUrl = resolveMediaUrl(reservation.paymentVoucherUrl)
                               Swal.fire({
                                 title: 'Comprobante de Pago',
                                 imageUrl: imageUrl,
@@ -826,21 +821,11 @@ const PendingReservationsModule = () => {
                         {/* Miniatura del voucher */}
                         <div className="mt-2" id={`voucher-container-${reservation.id}`}>
                           <img
-                            src={
-                              reservation.paymentVoucherUrl.startsWith('http')
-                                ? reservation.paymentVoucherUrl
-                                : reservation.paymentVoucherUrl.startsWith('/')
-                                  ? `${API_CONFIG.BASE_URL}${reservation.paymentVoucherUrl}`
-                                  : `${API_CONFIG.BASE_URL}/uploads/vouchers/${reservation.paymentVoucherUrl}`
-                            }
+                            src={resolveMediaUrl(reservation.paymentVoucherUrl)}
                             alt="Voucher de pago"
                             className="w-20 h-20 object-cover rounded-lg border border-blue-200 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => {
-                              const imageUrl = reservation.paymentVoucherUrl.startsWith('http')
-                                ? reservation.paymentVoucherUrl
-                                : reservation.paymentVoucherUrl.startsWith('/')
-                                  ? `${API_CONFIG.BASE_URL}${reservation.paymentVoucherUrl}`
-                                  : `${API_CONFIG.BASE_URL}/uploads/vouchers/${reservation.paymentVoucherUrl}`
+                              const imageUrl = resolveMediaUrl(reservation.paymentVoucherUrl)
                               Swal.fire({
                                 title: 'Comprobante de Pago',
                                 imageUrl: imageUrl,

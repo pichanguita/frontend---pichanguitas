@@ -30,3 +30,8 @@ export const PAGINATION_CONFIG = {
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
 }
+
+// Configuración de polling (actualizaciones periódicas en tiempo real)
+export const POLLING_CONFIG = {
+  ADMIN_COUNTERS_INTERVAL_MS: 30000, // Intervalo unificado para alerts/fields/registrations
+}

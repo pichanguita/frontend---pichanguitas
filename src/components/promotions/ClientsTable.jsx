@@ -54,10 +54,7 @@ const ClientsTable = ({ clientStats }) => {
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-secondary-400" />
-                    <span className="font-medium">{client.accumulatedHours || 0}h</span>
-                    <span className="text-xs text-secondary-400">
-                      ({client.totalHours || 0}h total)
-                    </span>
+                    <span className="font-medium">{client.totalHours || 0}h</span>
                   </div>
                 </td>
                 <td className="py-4 px-6">

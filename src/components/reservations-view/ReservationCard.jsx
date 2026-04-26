@@ -40,24 +40,24 @@ const ReservationCard = React.memo(
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-white rounded-lg shadow-md border-l-4 overflow-hidden ${
+        className={`bg-white rounded-lg shadow-md border-l-4 overflow-hidden w-full ${
           isPast ? 'border-gray-400 opacity-75' : 'border-green-500'
         }`}
       >
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Header */}
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">
+          <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 break-words">
                 {field?.name || reservation.fieldName || 'Cancha Desconocida'}
               </h3>
-              <div className="flex items-center text-sm text-gray-600 mt-1">
-                <MapPin className="w-4 h-4 mr-1" />
-                <span>{field?.location || 'Ubicación no disponible'}</span>
+              <div className="flex items-start text-xs sm:text-sm text-gray-600 mt-1">
+                <MapPin className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" />
+                <span className="break-words">{field?.location || 'Ubicación no disponible'}</span>
               </div>
             </div>
             <span
-              className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${statusBadge.color}`}
+              className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap flex-shrink-0 ${statusBadge.color}`}
             >
               {getStatusIcon(statusBadge.iconName)}
               {statusBadge.text}
@@ -65,13 +65,13 @@ const ReservationCard = React.memo(
           </div>
 
           {/* Información */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
             {/* Fecha */}
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-400" />
-              <div>
+              <Calendar className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div className="min-w-0">
                 <p className="text-xs text-gray-500">Fecha</p>
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900 break-words">
                   {formatReservationDate(reservation.date)}
                 </p>
               </div>
@@ -79,26 +79,28 @@ const ReservationCard = React.memo(
 
             {/* Hora */}
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-gray-400" />
-              <div>
+              <Clock className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <div className="min-w-0">
                 <p className="text-xs text-gray-500">Horario</p>
-                <p className="text-sm font-medium text-gray-900">{reservation.time}</p>
+                <p className="text-sm font-medium text-gray-900 break-words">{reservation.time}</p>
               </div>
             </div>
           </div>
 
           {/* Pagos */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4 space-y-2">
+            <div className="flex justify-between gap-2 text-xs sm:text-sm">
               <span className="text-gray-600">Precio Total:</span>
-              <span className="font-medium">S/ {reservation.totalPrice?.toFixed(2)}</span>
+              <span className="font-medium whitespace-nowrap">
+                S/ {reservation.totalPrice?.toFixed(2)}
+              </span>
             </div>
 
             {/* Mostrar adelanto si existe */}
             {parseFloat(reservation.advancePayment) > 0 && (
-              <div className="flex justify-between text-sm text-green-600">
+              <div className="flex justify-between gap-2 text-xs sm:text-sm text-green-600">
                 <span>Adelanto pagado:</span>
-                <span className="font-medium">
+                <span className="font-medium whitespace-nowrap">
                   S/ {parseFloat(reservation.advancePayment).toFixed(2)}
                 </span>
               </div>
@@ -106,30 +108,29 @@ const ReservationCard = React.memo(
 
             {/* Mostrar saldo pendiente si existe */}
             {parseFloat(reservation.remainingPayment) > 0 &&
-              reservation.paymentStatus !== 'fully_paid' &&
-              reservation.paymentStatus !== 'paid' && (
-                <div className="flex justify-between text-sm text-amber-600">
+              reservation.paymentStatus !== 'fully_paid' && (
+                <div className="flex justify-between gap-2 text-xs sm:text-sm text-amber-600">
                   <span>Saldo pendiente:</span>
-                  <span className="font-semibold">
+                  <span className="font-semibold whitespace-nowrap">
                     S/ {parseFloat(reservation.remainingPayment).toFixed(2)}
                   </span>
                 </div>
               )}
 
-            {reservation.paymentStatus === 'fully_paid' || reservation.paymentStatus === 'paid' ? (
-              <div className="flex justify-between text-sm text-green-600">
+            {reservation.paymentStatus === 'fully_paid' ? (
+              <div className="flex justify-between gap-2 text-xs sm:text-sm text-green-600">
                 <span>Estado de Pago:</span>
-                <span className="font-semibold">✓ Pagado Completo</span>
+                <span className="font-semibold whitespace-nowrap">✓ Pagado Completo</span>
               </div>
             ) : parseFloat(reservation.advancePayment) > 0 ? (
-              <div className="flex justify-between text-sm text-blue-600">
+              <div className="flex justify-between gap-2 text-xs sm:text-sm text-blue-600">
                 <span>Estado de Pago:</span>
-                <span className="font-semibold">Adelanto recibido</span>
+                <span className="font-semibold whitespace-nowrap">Adelanto recibido</span>
               </div>
             ) : (
-              <div className="flex justify-between text-sm text-orange-600">
+              <div className="flex justify-between gap-2 text-xs sm:text-sm text-orange-600">
                 <span>Estado de Pago:</span>
-                <span className="font-semibold">Pendiente</span>
+                <span className="font-semibold whitespace-nowrap">Pendiente</span>
               </div>
             )}
           </div>

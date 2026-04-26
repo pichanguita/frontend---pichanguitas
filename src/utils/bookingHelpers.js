@@ -1,4 +1,5 @@
 import { Car, Wifi, Droplet, Shield, Lightbulb } from 'lucide-react'
+import { getToday } from './dateFormatters'
 
 /**
  * Obtiene el ícono y color según el tipo de amenidad
@@ -136,6 +137,15 @@ export const isTimeSlotAvailable = (
 
   const normalizedSelectedDate = normalizeDate(selectedDate)
 
+  // Si la fecha seleccionada es hoy, descartar slots cuyo inicio ya pasó.
+  if (normalizedSelectedDate === getToday()) {
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const [slotHour, slotMin] = timeRange.startTime.split(':').map(Number)
+    const slotStartMinutes = slotHour * 60 + slotMin
+    if (slotStartMinutes <= currentMinutes) return false
+  }
+
   // Verificar horario de operación
   const dayOfWeek = new Date(selectedDate + 'T12:00:00')
     .toLocaleDateString('en-US', { weekday: 'long' })
@@ -164,11 +174,12 @@ export const isTimeSlotAvailable = (
   // Si tiene schedule pero no está abierto ese día
   if (!schedule.isOpen) return false
 
-  const startHour = parseInt(timeRange.startTime.split(':')[0])
-  const openHour = parseInt(schedule.openTime.split(':')[0])
-  const closeHour = parseInt(schedule.closeTime.split(':')[0]) || 24
-
-  if (startHour < openHour || startHour >= closeHour) return false
+  // Comparación lexicográfica entre strings 'HH:MM' es correcta (mismo ancho, 0-padded).
+  // openTime/closeTime pueden ser null (sin límite para ese extremo).
+  const slotStart = timeRange.startTime
+  const slotEnd = timeRange.endTime
+  if (schedule.openTime && slotStart < schedule.openTime.slice(0, 5)) return false
+  if (schedule.closeTime && slotEnd > schedule.closeTime.slice(0, 5)) return false
 
   // Verificar si hay una reserva existente
   const hasReservation = existingReservations.some((reservation) => {

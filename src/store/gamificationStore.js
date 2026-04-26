@@ -24,6 +24,10 @@ const useGamificationStore = create((set, get) => ({
   // Insignia que se acaba de desbloquear (para notificación)
   unlockedBadge: null,
   showNotification: false,
+  // Cola de insignias pendientes de notificar (cuando se desbloquean varias seguidas)
+  pendingBadgeQueue: [],
+  // IDs ya notificados en esta sesión (evita repetir notificación al refrescar la lista)
+  notifiedBadgeKeys: new Set(),
 
   // Estado de carga
   isLoading: false,
@@ -82,23 +86,6 @@ const useGamificationStore = create((set, get) => ({
   },
 
   /**
-   * Obtener tipos de criterios disponibles (desde BD)
-   * @returns {Array} Lista de criterios
-   */
-  getCriteriaTypes: () => {
-    const { criteria } = get()
-    // Transformar a formato compatible con el selector
-    return criteria.reduce((acc, crit) => {
-      acc[crit.code] = {
-        id: crit.id,
-        label: crit.name,
-        description: crit.description,
-      }
-      return acc
-    }, {})
-  },
-
-  /**
    * Obtener progreso de insignias de un cliente
    * @param {number} customerId - ID del cliente
    * @returns {Promise<Array>} Progreso de insignias
@@ -117,12 +104,12 @@ const useGamificationStore = create((set, get) => ({
   createBadge: async (badgeData) => {
     set({ isLoading: true, error: null })
     try {
-      // Preparar datos para el backend
+      // Preparar datos para el backend (criteria_id obligatorio)
       const apiData = {
         name: badgeData.name,
         icon: badgeData.icon,
         description: badgeData.description,
-        criteria_type: badgeData.criteriaType,
+        criteria_id: badgeData.criteriaId,
         is_active: badgeData.isActive !== false,
         tiers: badgeData.tiers || [],
       }
@@ -151,7 +138,7 @@ const useGamificationStore = create((set, get) => ({
         name: updates.name,
         icon: updates.icon,
         description: updates.description,
-        criteria_type: updates.criteriaType,
+        criteria_id: updates.criteriaId,
         is_active: updates.isActive,
         tiers: updates.tiers || [],
       }
@@ -230,8 +217,10 @@ const useGamificationStore = create((set, get) => ({
       if (config.notifyClients !== undefined) apiConfig.notify_clients = config.notifyClients
       if (config.notifyAdmin !== undefined) apiConfig.notify_admin = config.notifyAdmin
       if (config.showInProfile !== undefined) apiConfig.show_in_profile = config.showInProfile
-      if (config.showPublicRanking !== undefined) apiConfig.show_public_ranking = config.showPublicRanking
-      if (config.hideLockedBadges !== undefined) apiConfig.hide_locked_badges = config.hideLockedBadges
+      if (config.showPublicRanking !== undefined)
+        apiConfig.show_public_ranking = config.showPublicRanking
+      if (config.hideLockedBadges !== undefined)
+        apiConfig.hide_locked_badges = config.hideLockedBadges
       if (config.enableRewards !== undefined) apiConfig.enable_rewards = config.enableRewards
 
       // Guardar en BD
@@ -242,22 +231,80 @@ const useGamificationStore = create((set, get) => ({
     }
   },
 
-  // Mostrar notificación de insignia desbloqueada
-  showBadgeNotification: (badge) => {
-    set({
-      unlockedBadge: badge,
-      showNotification: true,
-    })
+  /**
+   * Encolar insignias recién desbloqueadas para mostrarlas como notificación.
+   * Acepta payloads del backend (camelCase via badgeAssignmentService).
+   * Filtra duplicados ya notificados en la sesión actual.
+   * @param {Array<Object>} newBadges
+   */
+  enqueueUnlockedBadges: (newBadges) => {
+    if (!Array.isArray(newBadges) || newBadges.length === 0) return
 
-    // Auto-cerrar después de 5 segundos
-    setTimeout(() => {
-      set({ showNotification: false })
-    }, 5000)
+    const { notifiedBadgeKeys, unlockedBadge, showNotification, pendingBadgeQueue } = get()
+    const next = []
+    const updatedKeys = new Set(notifiedBadgeKeys)
+
+    for (const b of newBadges) {
+      const key = `${b.badgeId}-${b.tier}`
+      if (updatedKeys.has(key)) continue
+      updatedKeys.add(key)
+      next.push(b)
+    }
+
+    if (next.length === 0) {
+      set({ notifiedBadgeKeys: updatedKeys })
+      return
+    }
+
+    if (showNotification && unlockedBadge) {
+      // Hay una notificación visible: encolar el resto
+      set({
+        pendingBadgeQueue: [...pendingBadgeQueue, ...next],
+        notifiedBadgeKeys: updatedKeys,
+      })
+      return
+    }
+
+    // No hay notificación activa: mostrar la primera y encolar el resto
+    const [head, ...rest] = next
+    set({
+      unlockedBadge: head,
+      showNotification: true,
+      pendingBadgeQueue: [...pendingBadgeQueue, ...rest],
+      notifiedBadgeKeys: updatedKeys,
+    })
   },
 
-  // Cerrar notificación manualmente
+  /**
+   * Marcar insignias ya existentes (cargadas al inicio) como ya notificadas
+   * para que en la misma sesión no se vuelvan a mostrar como “nuevas”.
+   * @param {Array<{badge_id:number, tier:string}>} userBadges
+   */
+  primeNotifiedFromExisting: (userBadges) => {
+    if (!Array.isArray(userBadges) || userBadges.length === 0) return
+    const { notifiedBadgeKeys } = get()
+    const updated = new Set(notifiedBadgeKeys)
+    for (const b of userBadges) {
+      updated.add(`${b.badge_id ?? b.badgeId}-${b.tier}`)
+    }
+    set({ notifiedBadgeKeys: updated })
+  },
+
+  /**
+   * Cerrar la notificación actual y, si hay más en cola, mostrar la siguiente.
+   */
   closeNotification: () => {
-    set({ showNotification: false })
+    const { pendingBadgeQueue } = get()
+    if (pendingBadgeQueue.length === 0) {
+      set({ showNotification: false })
+      return
+    }
+    const [next, ...rest] = pendingBadgeQueue
+    set({
+      unlockedBadge: next,
+      showNotification: true,
+      pendingBadgeQueue: rest,
+    })
   },
 }))
 

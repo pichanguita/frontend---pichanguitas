@@ -5,6 +5,15 @@
 /* Leaflet CSS */
 @import 'leaflet/dist/leaflet.css';
 
+/* Utilidad para ocultar scrollbar manteniendo scroll funcional (usado en navs horizontales en mobile) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

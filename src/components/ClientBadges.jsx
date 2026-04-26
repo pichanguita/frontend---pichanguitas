@@ -8,12 +8,14 @@ import { BADGE_TIER_ORDER } from '@/constants'
 
 const ClientBadges = () => {
   const { isAuthenticated } = useAuthStore()
-  const { badges, loadBadges } = useGamificationStore()
+  const { badges, loadBadges, enqueueUnlockedBadges, primeNotifiedFromExisting } =
+    useGamificationStore()
 
   const [userBadges, setUserBadges] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [nextBadgeProgress, setNextBadgeProgress] = useState([])
   const [customerId, setCustomerId] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // Cargar catálogo de insignias disponibles al montar
   useEffect(() => {
@@ -35,7 +37,8 @@ const ClientBadges = () => {
 
         let resolvedCustomerId = null
 
-        // Cargar mis badges y obtener customerId
+        // Cargar mis badges (este endpoint también dispara la asignación
+        // automática en el backend si se cumplió alguna meta).
         const badgesResponse = await fetch(API_CONFIG.BADGES.GET_MY_BADGES, {
           method: 'GET',
           headers: getAuthHeaders(),
@@ -43,14 +46,21 @@ const ClientBadges = () => {
         const badgesData = await badgesResponse.json()
 
         if (badgesData.success) {
-          setUserBadges(badgesData.data || [])
-          // Obtener customerId del primer badge si existe
-          if (badgesData.data && badgesData.data.length > 0) {
-            resolvedCustomerId = badgesData.data[0].customer_id
+          const list = badgesData.data || []
+          // En primera carga marcamos las existentes como ya notificadas
+          // (sólo lo nuevo del response 'newly_assigned' debe mostrar popup).
+          if (reloadKey === 0) {
+            primeNotifiedFromExisting(list)
           }
+          setUserBadges(list)
+          if (list.length > 0) {
+            resolvedCustomerId = list[0].customer_id
+          }
+          // Disparar notificación con las insignias recién desbloqueadas
+          enqueueUnlockedBadges(badgesData.newly_assigned || [])
         }
 
-        // Si no tenemos customerId de los badges, intentar obtenerlo de my-free-hours
+        // Si no tenemos customerId de los badges, obtenerlo de my-free-hours
         if (!resolvedCustomerId) {
           const freeHoursResponse = await fetch(API_CONFIG.CUSTOMERS.GET_MY_FREE_HOURS, {
             method: 'GET',
@@ -73,9 +83,11 @@ const ClientBadges = () => {
     }
 
     loadMyData()
-  }, [isAuthenticated])
+    // reloadKey permite forzar recarga después de un desbloqueo nuevo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, reloadKey])
 
-  // Cargar progreso de insignias
+  // Cargar progreso de insignias (también recalcula en el backend)
   useEffect(() => {
     const loadBadgeProgress = async () => {
       if (!isAuthenticated || !customerId) return
@@ -88,10 +100,16 @@ const ClientBadges = () => {
         const data = await response.json()
 
         if (data.success && data.data) {
-          // Transformar datos del backend al formato esperado por el componente
+          enqueueUnlockedBadges(data.newly_assigned || [])
+
+          // Si el endpoint asignó nuevas insignias, recargar la lista
+          // de userBadges para que aparezcan en el contador.
+          if ((data.newly_assigned || []).length > 0) {
+            setReloadKey((k) => k + 1)
+          }
+
           const progressData = data.data
             .map((badge) => {
-              // Encontrar el primer tier no desbloqueado
               const nextTier = badge.tiers.find((t) => !t.is_unlocked)
               if (!nextTier) return null
 
@@ -125,7 +143,7 @@ const ClientBadges = () => {
     }
 
     loadBadgeProgress()
-  }, [isAuthenticated, customerId])
+  }, [isAuthenticated, customerId, reloadKey, enqueueUnlockedBadges])
 
   // Mapeo de tiers a labels y colores
   const tierConfig = {

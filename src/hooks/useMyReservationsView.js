@@ -57,10 +57,10 @@ export const useMyReservationsView = ({
     return calculateFieldRentalCount(myReservations)
   }, [myReservations])
 
-  // Calcular saldo pendiente total
+  // Calcular saldo pendiente total (incluye reservas activas + historial cobrable)
   const totalPendingBalance = useMemo(() => {
-    return calculateTotalPendingBalance(activeReservations)
-  }, [activeReservations])
+    return calculateTotalPendingBalance(myReservations)
+  }, [myReservations])
 
   // Función para obtener información de la cancha
   const getFieldInfo = useCallback(

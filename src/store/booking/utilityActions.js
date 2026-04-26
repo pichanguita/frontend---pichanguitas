@@ -12,6 +12,7 @@ import {
   getFieldPaymentMethods,
   AVAILABLE_PAYMENT_METHODS,
 } from '../../services/fieldPaymentMethods/fieldPaymentMethodsService'
+import { fetchMyFreeHours } from '../../services/customers/customersService'
 
 export const createUtilityActions = (set, get) => ({
   // ==================== PAYMENT METHODS ====================
@@ -89,6 +90,26 @@ export const createUtilityActions = (set, get) => ({
       console.error('Error cargando métodos de pago:', error)
       set({ paymentMethods: [] })
       return []
+    }
+  },
+
+  // ==================== FREE HOURS (LOYALTY) ====================
+
+  /**
+   * Carga las horas gratis acumuladas del cliente autenticado y las guarda en el store.
+   * Llamar al iniciar sesión y después de cada operación que las modifique
+   * (canjear promoción, crear reserva con free_hours_used, cancelar reserva).
+   * @returns {Promise<number>} availableFreeHours
+   */
+  loadMyFreeHours: async () => {
+    const { availableFreeHours: prev } = get()
+    try {
+      const data = await fetchMyFreeHours()
+      const next = parseFloat(data?.availableFreeHours) || 0
+      set({ availableFreeHours: next })
+      return next
+    } catch {
+      return prev
     }
   },
 

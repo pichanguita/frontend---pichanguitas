@@ -48,12 +48,14 @@ const UserTable = ({
   users,
   getUserFields,
   getUserActivity,
+  onLoadUserActivity,
   onToggleBlock,
   onEditUser,
   onDeleteUser,
   onViewDetails,
   isSuperAdmin = false,
 }) => {
+  const [loadingActivityFor, setLoadingActivityFor] = useState(null)
   const [, setShowPassword] = useState({})
   const [expandedUserId, setExpandedUserId] = useState(null)
   const [activityTab, setActivityTab] = useState('all')
@@ -204,11 +206,20 @@ const UserTable = ({
     exportToExcel(user, activities)
   }
 
-  // Handler para expandir/contraer actividades
-  const handleToggleExpand = (userId) => {
-    setExpandedUserId(expandedUserId === userId ? null : userId)
-    if (expandedUserId !== userId) {
+  // Handler para expandir/contraer actividades (carga desde backend al expandir)
+  const handleToggleExpand = async (userId) => {
+    const isOpening = expandedUserId !== userId
+    setExpandedUserId(isOpening ? userId : null)
+    if (isOpening) {
       setActivityTab('all')
+      if (typeof onLoadUserActivity === 'function') {
+        setLoadingActivityFor(userId)
+        try {
+          await onLoadUserActivity(userId)
+        } finally {
+          setLoadingActivityFor(null)
+        }
+      }
     }
   }
 
@@ -292,40 +303,53 @@ const UserTable = ({
     setCopied(false)
   }
 
+  // Formato compacto de fecha para celdas estrechas (ej: "21/04/26 12:03")
+  const formatDateCompact = (date) => {
+    if (!date) return '—'
+    try {
+      const d = new Date(date)
+      if (Number.isNaN(d.getTime())) return '—'
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const yy = String(d.getFullYear()).slice(-2)
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mi = String(d.getMinutes()).padStart(2, '0')
+      return `${dd}/${mm}/${yy} ${hh}:${mi}`
+    } catch {
+      return '—'
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col className="w-[24%]" />
+            <col className="w-[22%]" />
+            <col className="w-[10%]" />
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
+            <col className="w-[16%]" />
+          </colgroup>
           <thead className="bg-secondary-50 border-b border-secondary-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-secondary-700 uppercase tracking-wider">
                 Usuario
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary-700 uppercase tracking-wider">
-                Contacto
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-secondary-700 uppercase tracking-wider">
-                Contraseña
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-secondary-700 uppercase tracking-wider">
                 Establecimiento
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary-700 uppercase tracking-wider">
-                Canchas
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-secondary-700 uppercase tracking-wider">
                 Acceso
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-secondary-700 uppercase tracking-wider">
-                Última Actividad
+              <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-secondary-700 uppercase tracking-wider">
+                Últ. Actividad
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary-700 uppercase tracking-wider">
-                Registro
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-secondary-700 uppercase tracking-wider">
+                Antigüedad
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-secondary-700 uppercase tracking-wider">
-                Meses Cumplidos
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-secondary-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-secondary-700 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -333,7 +357,7 @@ const UserTable = ({
           <tbody className="bg-white divide-y divide-secondary-200">
             {users.length === 0 ? (
               <tr>
-                <td colSpan="10" className="px-6 py-12 text-center text-secondary-500">
+                <td colSpan="6" className="px-6 py-12 text-center text-secondary-500">
                   <Users className="w-12 h-12 mx-auto mb-3 text-secondary-300" />
                   <p className="text-lg font-medium">No se encontraron usuarios</p>
                   <p className="text-sm mt-1">Intenta ajustar los filtros de búsqueda</p>
@@ -353,230 +377,206 @@ const UserTable = ({
 
                 return (
                   <React.Fragment key={user.id}>
-                    <tr>
-                      {/* Columna Usuario */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                            <span className="text-primary-700 font-bold">
+                    <tr className="hover:bg-secondary-50/50 transition-colors">
+                      {/* USUARIO: avatar + nombre + id + email + username */}
+                      <td className="px-3 py-3 align-top">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-700 font-bold text-sm">
                               {user.name?.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-secondary-900">{user.name}</p>
-                            <p className="text-xs text-secondary-500">ID: {user.id}</p>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="text-sm font-semibold text-secondary-900 truncate"
+                              title={user.name}
+                            >
+                              {user.name}
+                            </p>
+                            <p
+                              className="text-[11px] text-secondary-500 truncate flex items-center gap-1"
+                              title={user.email}
+                            >
+                              <Mail className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{user.email}</span>
+                            </p>
+                            <p className="text-[11px] text-secondary-500 truncate flex items-center gap-1">
+                              <span className="inline-block w-3 h-3 flex-shrink-0 text-center">@</span>
+                              <span className="truncate">{user.username || 'N/A'}</span>
+                              <span className="text-secondary-400 ml-1">#{user.id}</span>
+                            </p>
                           </div>
                         </div>
                       </td>
 
-                      {/* Columna Contacto */}
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center text-sm text-secondary-600">
-                            <Mail className="w-3 h-3 mr-1" />
-                            {user.email}
+                      {/* ESTABLECIMIENTO + CANCHAS (fusionado) */}
+                      <td className="px-3 py-3 align-top">
+                        {userFields.length > 0 ? (
+                          <div className="min-w-0">
+                            <p
+                              className="text-sm font-medium text-secondary-900 truncate"
+                              title={userFields[0].name}
+                            >
+                              {userFields[0].name}
+                            </p>
+                            <p
+                              className="text-[11px] text-secondary-500 truncate flex items-center gap-1 mt-0.5"
+                              title={userFields[0].distrito || userFields[0].address || ''}
+                            >
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">
+                                {userFields[0].distrito || userFields[0].address || 'Sin dirección'}
+                              </span>
+                            </p>
+                            <button
+                              onClick={() => onViewDetails(user)}
+                              className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                              title="Ver canchas"
+                            >
+                              <Eye className="w-3 h-3" />
+                              {userFields.length} {userFields.length === 1 ? 'cancha' : 'canchas'}
+                            </button>
                           </div>
-                          <div className="flex items-center text-sm text-secondary-600">
-                            <Phone className="w-3 h-3 mr-1" />
-                            {user.username || 'N/A'}
+                        ) : (
+                          <div>
+                            <p className="text-sm font-medium text-secondary-400">Sin asignar</p>
+                            <p className="text-[11px] text-secondary-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3" />
+                              Sin dirección
+                            </p>
+                            <span className="text-[11px] text-secondary-400 mt-1 inline-block">
+                              0 canchas
+                            </span>
                           </div>
+                        )}
+                      </td>
+
+                      {/* ACCESO */}
+                      <td className="px-3 py-3 align-top text-center">
+                        {user.isBlocked ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-800">
+                            <Power className="w-3 h-3 mr-1" />
+                            Bloqueado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-800">
+                            <ShieldCheck className="w-3 h-3 mr-1" />
+                            Permitido
+                          </span>
+                        )}
+                      </td>
+
+                      {/* ÚLTIMA ACTIVIDAD */}
+                      <td className="px-3 py-3 align-top">
+                        <div className="text-[11px] text-secondary-600 min-w-0">
+                          {lastActivity ? (
+                            <>
+                              <p
+                                className="font-medium text-secondary-800 truncate"
+                                title={
+                                  typeof lastActivity.action === 'string'
+                                    ? lastActivity.action
+                                    : 'Actividad registrada'
+                                }
+                              >
+                                {typeof lastActivity.action === 'string'
+                                  ? lastActivity.action
+                                  : 'Actividad'}
+                              </p>
+                              <p className="text-secondary-500 truncate">
+                                {formatDateCompact(lastActivity.timestamp)}
+                              </p>
+                            </>
+                          ) : user.lastLogin || user.last_login ? (
+                            <>
+                              <p className="font-medium text-green-600 truncate">Último acceso</p>
+                              <p className="text-secondary-500 truncate">
+                                {formatDateCompact(user.lastLogin || user.last_login)}
+                              </p>
+                            </>
+                          ) : (
+                            <span className="text-secondary-400 italic">Sin registro</span>
+                          )}
                         </div>
                       </td>
 
-                      {/* Columna Contraseña */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center">
+                      {/* ANTIGÜEDAD (Registro + Meses Cumplidos fusionado compacto) */}
+                      <td className="px-3 py-3 align-top">
+                        <div
+                          className="flex flex-col items-center gap-1 min-w-0"
+                          title={`Registrado: ${formatDate(user.createdAt)}`}
+                        >
+                          <div
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${monthColors.bg} ${monthColors.border} ${isAnniversary ? 'animate-pulse' : ''}`}
+                          >
+                            <span className="text-sm leading-none">{monthColors.emoji}</span>
+                            <span className={`text-[11px] font-bold ${monthColors.text} whitespace-nowrap`}>
+                              {monthsAndDays.text}
+                            </span>
+                          </div>
+                          <div
+                            className={`flex items-center gap-1 text-[10px] font-medium ${registrationColors.text} truncate w-full justify-center`}
+                          >
+                            <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
+                            <span className="truncate">{formatDateCompact(user.createdAt)}</span>
+                          </div>
+                          {isAnniversary && (
+                            <span className="text-[10px] text-purple-600 font-semibold flex items-center gap-0.5 whitespace-nowrap">
+                              <Gift className="w-2.5 h-2.5" />
+                              Aniv.
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* ACCIONES (incluye Reset password como ícono) */}
+                      <td className="px-3 py-3 align-top">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleShowConfirmModal(user)}
                             disabled={resetLoading[user.id]}
-                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors"
-                            title="Generar nueva contraseña temporal"
+                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                            title="Resetear contraseña"
                           >
                             {resetLoading[user.id] ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                                Generando...
-                              </>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
                             ) : (
-                              <>
-                                <RefreshCw className="w-4 h-4 mr-1" />
-                                Resetear
-                              </>
+                              <RefreshCw className="w-4 h-4" />
                             )}
                           </button>
-                        </div>
-                      </td>
-
-                      {/* Columna Establecimiento */}
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          {userFields.length > 0 ? (
-                            <>
-                              <p className="text-sm font-medium text-secondary-900">
-                                {userFields[0].name}
-                                {userFields.length > 1 && (
-                                  <span className="text-xs text-secondary-500 ml-1">
-                                    (+{userFields.length - 1} más)
-                                  </span>
-                                )}
-                              </p>
-                              <div className="flex items-center text-xs text-secondary-500">
-                                <MapPin className="w-3 h-3 mr-1" />
-                                {userFields[0].distrito || userFields[0].address || 'Sin dirección'}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm font-medium text-secondary-400">
-                                Sin asignación
-                              </p>
-                              <div className="flex items-center text-xs text-secondary-400">
-                                <MapPin className="w-3 h-3 mr-1" />
-                                Sin dirección
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Columna Canchas */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-secondary-900">
-                            {userFields.length}
-                          </span>
-                          {userFields.length > 0 && (
-                            <button
-                              onClick={() => onViewDetails(user)}
-                              className="text-primary-600 hover:text-primary-700"
-                              title="Ver canchas"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Columna Estado (Acceso) */}
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          {user.isBlocked ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              <Power className="w-3 h-3 mr-1" />
-                              Bloqueado
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              <ShieldCheck className="w-3 h-3 mr-1" />
-                              Permitido
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Columna Última Actividad */}
-                      <td className="px-6 py-4">
-                        <div className="text-xs text-secondary-600">
-                          {lastActivity ? (
-                            <div>
-                              <p className="font-medium">
-                                {typeof lastActivity.action === 'string'
-                                  ? lastActivity.action
-                                  : 'Actividad registrada'}
-                              </p>
-                              <p className="text-secondary-500">
-                                {formatDate(lastActivity.timestamp)}
-                              </p>
-                            </div>
-                          ) : user.lastLogin || user.last_login ? (
-                            <div>
-                              <p className="font-medium text-green-600">Último acceso</p>
-                              <p className="text-secondary-500">
-                                {formatDate(user.lastLogin || user.last_login)}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-secondary-400">Sin actividad registrada</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Columna Registro */}
-                      <td className="px-6 py-4">
-                        <div
-                          className={`inline-flex flex-col items-start px-3 py-2 rounded-lg border ${registrationColors.bg} ${registrationColors.border}`}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span
-                              className={`text-xs font-bold px-2 py-0.5 rounded-full ${registrationColors.badge}`}
-                            >
-                              {registrationColors.badgeText}
-                            </span>
-                            <Calendar className={`w-3 h-3 ${registrationColors.text}`} />
-                          </div>
-                          <p className={`text-xs font-medium ${registrationColors.text}`}>
-                            {formatDate(user.createdAt)}
-                          </p>
-                        </div>
-                      </td>
-
-                      {/* Columna Meses Cumplidos */}
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`inline-flex flex-col items-center gap-1 px-4 py-2 ${monthColors.bg} border-2 ${monthColors.border} rounded-lg ${isAnniversary ? 'animate-pulse shadow-lg' : 'shadow-sm'}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">{monthColors.emoji}</span>
-                              <span className={`text-sm font-bold ${monthColors.text}`}>
-                                {monthsAndDays.text}
-                              </span>
-                            </div>
-                          </div>
-                          {isAnniversary && (
-                            <span className="text-xs text-purple-600 mt-1 font-medium flex items-center gap-1">
-                              <Gift className="w-3 h-3" />
-                              🎉 Aniversario hoy
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Columna Acciones */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => onToggleBlock(user)}
-                            className={`transition-colors p-2 rounded-lg ${
+                            className={`transition-colors p-1.5 rounded-lg ${
                               !user.isBlocked
                                 ? 'text-green-600 hover:bg-green-50'
                                 : 'text-red-600 hover:bg-red-50'
                             }`}
                             title={
                               user.isBlocked
-                                ? 'Desbloquear acceso de usuario'
-                                : 'Bloquear acceso de usuario'
+                                ? 'Desbloquear acceso'
+                                : 'Bloquear acceso'
                             }
                           >
                             <Power className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleToggleExpand(user.id)}
-                            className={`transition-colors ${
+                            className={`transition-colors p-1.5 rounded-lg ${
                               expandedUserId === user.id
-                                ? 'text-purple-700 bg-purple-100 px-2 py-1 rounded'
-                                : 'text-purple-600 hover:text-purple-700'
+                                ? 'text-purple-700 bg-purple-100'
+                                : 'text-purple-600 hover:bg-purple-50'
                             }`}
-                            title="Ver registros de actividad"
+                            title={
+                              expandedUserId === user.id
+                                ? 'Ocultar actividad'
+                                : 'Ver registros de actividad'
+                            }
                           >
                             <Activity className="w-4 h-4" />
-                            {expandedUserId === user.id && (
-                              <span className="ml-1 text-xs">Ocultar</span>
-                            )}
                           </button>
                           <button
                             onClick={() => onEditUser(user)}
-                            className="text-blue-600 hover:text-blue-700 transition-colors p-2 rounded-lg hover:bg-blue-50"
+                            className="text-blue-600 hover:text-blue-700 transition-colors p-1.5 rounded-lg hover:bg-blue-50"
                             title="Editar usuario"
                           >
                             <Edit className="w-4 h-4" />
@@ -584,7 +584,7 @@ const UserTable = ({
                           {isSuperAdmin && (
                             <button
                               onClick={() => onDeleteUser(user)}
-                              className="text-red-600 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50"
+                              className="text-red-600 hover:text-red-700 transition-colors p-1.5 rounded-lg hover:bg-red-50"
                               title="Eliminar usuario"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -597,7 +597,7 @@ const UserTable = ({
                     {/* Fila expandible con actividades */}
                     {expandedUserId === user.id && (
                       <tr>
-                        <td colSpan="10" className="px-6 py-4 bg-gray-50">
+                        <td colSpan="6" className="px-6 py-4 bg-gray-50">
                           <div className="space-y-4">
                             <div className="flex items-center justify-between mb-4">
                               <h4 className="font-semibold text-secondary-900">
@@ -626,6 +626,18 @@ const UserTable = ({
 
                             {/* Lista de actividades */}
                             <div className="max-h-80 overflow-y-auto space-y-2">
+                              {loadingActivityFor === user.id &&
+                                getUserActivity(user.id).length === 0 && (
+                                  <div className="text-center py-6 text-secondary-500 text-sm">
+                                    Cargando actividad...
+                                  </div>
+                                )}
+                              {loadingActivityFor !== user.id &&
+                                getUserActivity(user.id).length === 0 && (
+                                  <div className="text-center py-6 text-secondary-400 text-sm">
+                                    Sin actividad registrada
+                                  </div>
+                                )}
                               {getUserActivity(user.id)
                                 .filter(
                                   (activity) =>

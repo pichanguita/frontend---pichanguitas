@@ -42,13 +42,13 @@ const Header = ({ onOpenBooking }) => {
       }}
     >
       <div className="px-3 mx-auto max-w-7xl sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between py-3 sm:py-4">
+        <div className="flex items-center justify-between py-2.5 sm:py-4 gap-2">
           {/* Logo */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
             <img
               src="/LOGO.png"
               alt="Pichanguitas Logo"
-              className="object-contain w-14 h-14 sm:w-16 sm:h-16"
+              className="object-contain w-10 h-10 sm:w-16 sm:h-16 flex-shrink-0"
             />
             <div className="hidden sm:block">
               <h1
@@ -59,9 +59,9 @@ const Header = ({ onOpenBooking }) => {
               </h1>
               <p className="text-xs tracking-wide uppercase text-primary-400">Reserva de Cancha</p>
             </div>
-            <div className="block sm:hidden">
+            <div className="block sm:hidden min-w-0">
               <h1
-                className="text-lg font-bold tracking-tight uppercase transition-colors duration-300"
+                className="text-sm xs:text-base font-bold tracking-tight uppercase transition-colors duration-300 truncate"
                 style={{ color: isDarkMode ? '#ffffff' : '#1a3a3a' }}
               >
                 PICHANGUITAS
@@ -103,7 +103,7 @@ const Header = ({ onOpenBooking }) => {
           </nav>
 
           {/* Contact Info, Theme Toggle, Admin Link & Mobile Menu Button */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-1.5 sm:space-x-4 flex-shrink-0">
             <div
               className="items-center hidden space-x-2 transition-colors duration-300 md:flex"
               style={{ color: isDarkMode ? '#d1d5db' : '#475569' }}
@@ -115,7 +115,7 @@ const Header = ({ onOpenBooking }) => {
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 transition-all duration-300 rounded-lg hover:scale-110"
+              className="p-1.5 sm:p-2 transition-all duration-300 rounded-lg hover:scale-110"
               style={{
                 backgroundColor: isDarkMode ? 'rgba(255, 213, 0, 0.2)' : 'rgba(34, 197, 94, 0.2)',
                 color: isDarkMode ? '#ffd500' : '#22c55e',
@@ -123,7 +123,11 @@ const Header = ({ onOpenBooking }) => {
               aria-label="Toggle theme"
               title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isDarkMode ? (
+                <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
+              ) : (
+                <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
             </button>
 
             {/* Login Link */}

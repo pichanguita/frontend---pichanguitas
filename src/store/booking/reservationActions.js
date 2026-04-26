@@ -19,8 +19,6 @@ import {
   createReservationAPI,
   updateReservationAPI,
   cancelReservationAPI,
-  completeReservationAPI,
-  markNoShowAPI,
   checkAvailabilityAPI,
   fetchFieldStatsAPI,
 } from '../../services/booking/reservationService'
@@ -29,7 +27,6 @@ import { fetchRefunds, processRefundAPI } from '../../services/refunds/refundsSe
 
 // Helpers
 import { validateUserBlacklist } from '../../utils/booking-store/blacklistValidationHelper'
-import { checkAndUnlockBadgesForReservation } from '../../utils/booking-store/gamificationHelper'
 import { processCancellation } from '../../utils/booking-store/cancellationProcessHelper'
 import { createReservationObjects } from '../../utils/booking-store/reservationHelpers'
 import {
@@ -40,7 +37,6 @@ import {
 import {
   approveReservationHelper,
   rejectReservationHelper,
-  completeReservationHelper,
   updateReservationPaymentHelper,
   addReservationHelper,
 } from '../../utils/booking-store/reservationManagementHelpers'
@@ -202,42 +198,6 @@ export const createReservationActions = (set, get) => ({
   },
 
   /**
-   * Completar reserva en backend
-   * @param {string} reservationId - ID de la reserva
-   * @returns {Promise<boolean>} True si se completó
-   */
-  completeReservationAPI: async (reservationId) => {
-    const token = useAuthStore.getState().token
-    if (!token) throw new Error('No hay token de autenticación')
-
-    await completeReservationAPI(reservationId, token)
-
-    // Recargar todas las reservas desde el backend para mantener sincronización
-    const freshReservations = await fetchReservations()
-    set({ existingReservations: freshReservations })
-
-    return true
-  },
-
-  /**
-   * Marcar reserva como no show en backend
-   * @param {string} reservationId - ID de la reserva
-   * @returns {Promise<boolean>} True si se marcó
-   */
-  markNoShowAPI: async (reservationId) => {
-    const token = useAuthStore.getState().token
-    if (!token) throw new Error('No hay token de autenticación')
-
-    await markNoShowAPI(reservationId, token)
-
-    // Recargar todas las reservas desde el backend para mantener sincronización
-    const freshReservations = await fetchReservations()
-    set({ existingReservations: freshReservations })
-
-    return true
-  },
-
-  /**
    * Verificar disponibilidad en backend
    * @param {Object} params - { field_id, date, time_slots }
    * @returns {Promise<Object>} { available, conflicting_slots }
@@ -379,21 +339,6 @@ export const createReservationActions = (set, get) => ({
       rejectionReason
     )
     set({ existingReservations: updatedReservations })
-    return true
-  },
-
-  completeReservation: (reservationId) => {
-    const result = completeReservationHelper(get().existingReservations, reservationId)
-    if (!result.success) return false
-
-    set({ existingReservations: result.reservations })
-    const { reservation, reservations: updatedReservations } = result
-
-    // Trigger gamificación si hay cliente asociado (el backend calcula automáticamente)
-    if (reservation.customerId) {
-      checkAndUnlockBadgesForReservation(reservation.customerId)
-    }
-
     return true
   },
 

@@ -282,17 +282,17 @@ const MyProfileView = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow-md border border-gray-200 p-6"
+        className="bg-white rounded-lg shadow-md border border-gray-200 p-4 sm:p-6"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Lock className="w-5 h-5 text-green-600" />
-            Seguridad
+        <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2 min-w-0">
+            <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
+            <span className="truncate">Seguridad</span>
           </h3>
           {!isChangingPassword && (
             <button
               onClick={() => setIsChangingPassword(true)}
-              className="text-sm text-green-600 hover:text-green-700 font-medium"
+              className="text-xs sm:text-sm text-green-600 hover:text-green-700 font-medium whitespace-nowrap flex-shrink-0"
             >
               Cambiar Contraseña
             </button>
@@ -300,10 +300,10 @@ const MyProfileView = () => {
         </div>
 
         {isChangingPassword ? (
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <form onSubmit={handlePasswordSubmit} className="space-y-3 sm:space-y-4">
             {/* Contraseña Actual */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Contraseña Actual
               </label>
               <div className="relative">
@@ -313,7 +313,7 @@ const MyProfileView = () => {
                   onChange={(e) =>
                     setPasswordData({ ...passwordData, currentPassword: e.target.value })
                   }
-                  className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                  className={`w-full px-3 py-2 sm:px-4 sm:py-3 pr-10 sm:pr-12 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base ${
                     errors.currentPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="••••••••"
@@ -323,12 +323,16 @@ const MyProfileView = () => {
                   onClick={() => setShowPasswords(!showPasswords)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPasswords ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPasswords ? (
+                    <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                  ) : (
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                  )}
                 </button>
               </div>
               {errors.currentPassword && (
-                <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
+                <p className="text-red-500 text-xs sm:text-sm mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                   {errors.currentPassword}
                 </p>
               )}
@@ -336,21 +340,21 @@ const MyProfileView = () => {
 
             {/* Nueva Contraseña */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Nueva Contraseña
               </label>
               <input
                 type={showPasswords ? 'text' : 'password'}
                 value={passwordData.newPassword}
                 onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base ${
                   errors.newPassword ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Mínimo 8 caracteres"
               />
               {errors.newPassword && (
-                <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
+                <p className="text-red-500 text-xs sm:text-sm mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                   {errors.newPassword}
                 </p>
               )}
@@ -358,7 +362,7 @@ const MyProfileView = () => {
 
             {/* Confirmar Nueva Contraseña */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Confirmar Nueva Contraseña
               </label>
               <input
@@ -367,21 +371,21 @@ const MyProfileView = () => {
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, confirmPassword: e.target.value })
                 }
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 sm:px-4 sm:py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base ${
                   errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Repite tu nueva contraseña"
               />
               {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
+                <p className="text-red-500 text-xs sm:text-sm mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                   {errors.confirmPassword}
                 </p>
               )}
             </div>
 
             {/* Botones */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
               <button
                 type="button"
                 onClick={() => {
@@ -393,22 +397,22 @@ const MyProfileView = () => {
                   })
                   setErrors({})
                 }}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                className="flex-1 px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm sm:text-base"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-3 py-2 sm:px-4 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
               >
-                <Lock className="w-4 h-4" />
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
                 Cambiar Contraseña
               </button>
             </div>
           </form>
         ) : (
-          <div className="py-4">
-            <p className="text-sm text-gray-600">
+          <div className="py-3 sm:py-4">
+            <p className="text-xs sm:text-sm text-gray-600">
               Mantén tu cuenta segura cambiando tu contraseña regularmente
             </p>
           </div>

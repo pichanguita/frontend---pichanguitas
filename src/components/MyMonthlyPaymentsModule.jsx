@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../store/authStore'
 import { API_CONFIG } from '../config/api.config'
+import { resolveMediaUrl } from '../utils/mediaUrl'
 import { usePaymentReport } from '../hooks/usePaymentReport.jsx'
 
 const MyMonthlyPaymentsModule = () => {
@@ -34,6 +35,10 @@ const MyMonthlyPaymentsModule = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedField, setSelectedField] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+
+  // Modal Ver Comprobante
+  const [showVoucherModal, setShowVoucherModal] = useState(false)
+  const [selectedVoucher, setSelectedVoucher] = useState(null)
 
   // Usar el hook compartido para reporte de pagos
   const {
@@ -286,13 +291,11 @@ const MyMonthlyPaymentsModule = () => {
     return configs[status] || configs.pending
   }, [])
 
-  // Ver comprobante
-  const handleViewVoucher = useCallback((url) => {
-    if (url) {
-      // Soportar URLs absolutas (Wasabi) y relativas (/uploads/...)
-      const fullUrl = url.startsWith('http') ? url : `${API_CONFIG.BASE_URL}${url}`
-      window.open(fullUrl, '_blank')
-    }
+  // Ver comprobante (abre modal)
+  const handleViewVoucher = useCallback((payment) => {
+    if (!payment?.payment_voucher_url) return
+    setSelectedVoucher(payment)
+    setShowVoucherModal(true)
   }, [])
 
   if (loading) {
@@ -565,7 +568,7 @@ const MyMonthlyPaymentsModule = () => {
                           )}
                           {payment.payment_voucher_url && (
                             <button
-                              onClick={() => handleViewVoucher(payment.payment_voucher_url)}
+                              onClick={() => handleViewVoucher(payment)}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors"
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -823,6 +826,119 @@ const MyMonthlyPaymentsModule = () => {
                       Reportar Pago
                     </>
                   )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Ver Comprobante */}
+      <AnimatePresence>
+        {showVoucherModal && selectedVoucher && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowVoucherModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Comprobante de Pago</h2>
+                  <p className="text-sm text-gray-500">
+                    {selectedVoucher.field_name} - {getMonthName(selectedVoucher.month)}{' '}
+                    {selectedVoucher.year}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowVoucherModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Contenido */}
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Monto:</span>
+                    <p className="font-bold text-green-600">
+                      S/ {selectedVoucher.amount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Metodo:</span>
+                    <p className="font-medium">{selectedVoucher.payment_method || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Referencia:</span>
+                    <p className="font-medium font-mono break-all">
+                      {selectedVoucher.payment_reference || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Reportado:</span>
+                    <p className="font-medium">
+                      {selectedVoucher.reported_at
+                        ? new Date(selectedVoucher.reported_at).toLocaleDateString('es-PE', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedVoucher.notes && (
+                  <div>
+                    <span className="text-gray-500 text-sm">Notas:</span>
+                    <p className="text-sm bg-gray-50 p-3 rounded-lg mt-1 whitespace-pre-wrap">
+                      {selectedVoucher.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-gray-500 text-sm">Imagen del comprobante:</span>
+                  <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <img
+                      src={resolveMediaUrl(selectedVoucher.payment_voucher_url)}
+                      alt="Comprobante"
+                      className="w-full h-auto max-h-[60vh] object-contain"
+                    />
+                  </div>
+                  <a
+                    href={resolveMediaUrl(selectedVoucher.payment_voucher_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 mt-2 text-sm text-primary-600 hover:text-primary-700"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Abrir en nueva pestana
+                  </a>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowVoucherModal(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cerrar
                 </button>
               </div>
             </motion.div>

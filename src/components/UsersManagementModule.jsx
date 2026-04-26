@@ -24,12 +24,16 @@ import UserStatsCards from './users/UserStatsCards'
 import UserFilters from './users/UserFilters'
 import UserTable from './users/UserTable'
 import { fetchUsers, createUserAPI } from '../services/users/usersService'
+import { fetchUserActivityLogs } from '../services/activityLogs/activityLogsService'
+import { formatPhone, unformatPhone } from './NewFieldModal/utils/fieldValidators'
 
 const UsersManagementModule = () => {
-  const { activityLogs, token, user: currentUser } = useAuthStore()
+  const { token, user: currentUser } = useAuthStore()
   const { fields, loadFields } = useFieldStore()
   const [loading, setLoading] = useState(true)
   const [backendUsers, setBackendUsers] = useState([])
+  // Cache de actividad por userId (se llena on-demand al expandir la fila)
+  const [activityByUserId, setActivityByUserId] = useState({})
 
   // Cargar usuarios y campos desde el backend al montar el componente
   useEffect(() => {
@@ -102,13 +106,22 @@ const UsersManagementModule = () => {
   })
   const [isUpdating, setIsUpdating] = useState(false)
 
-  // Obtener actividad de usuario desde authStore (activityLogs)
-  const getUserActivity = (userId) => {
-    // Filtrar logs por userId y ordenar por timestamp descendente
-    return activityLogs
-      .filter((log) => log.userId === userId)
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  // Fetch de logs desde el backend (lazy, se invoca al expandir la fila)
+  const ensureUserActivityLoaded = async (userId) => {
+    if (activityByUserId[userId]) return activityByUserId[userId]
+    try {
+      const { items } = await fetchUserActivityLogs(userId)
+      setActivityByUserId((prev) => ({ ...prev, [userId]: items }))
+      return items
+    } catch (error) {
+      console.error('Error al cargar actividad del usuario', userId, error)
+      setActivityByUserId((prev) => ({ ...prev, [userId]: [] }))
+      return []
+    }
   }
+
+  // Lee del cache (puede devolver array vacío si aún no cargó)
+  const getUserActivity = (userId) => activityByUserId[userId] || []
 
   // Handlers de CRUD
   const handleToggleBlock = async (user) => {
@@ -208,7 +221,7 @@ const UsersManagementModule = () => {
     setEditFormData({
       name: user.name || '',
       email: user.email || '',
-      phone: user.phone || '',
+      phone: formatPhone(user.phone || ''),
       newPassword: '',
     })
     setShowEditModal(true)
@@ -239,6 +252,17 @@ const UsersManagementModule = () => {
       return
     }
 
+    const phoneDigits = unformatPhone(editFormData.phone || '')
+    if (phoneDigits && phoneDigits.length !== 9) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'El teléfono debe tener 9 dígitos',
+        confirmButtonColor: '#22c55e',
+      })
+      return
+    }
+
     setIsUpdating(true)
 
     try {
@@ -252,7 +276,7 @@ const UsersManagementModule = () => {
       const updatePayload = {
         name: editFormData.name.trim(),
         email: editFormData.email.trim(),
-        phone: editFormData.phone?.trim() || null,
+        phone: phoneDigits || null,
       }
 
       await updateUserAPI(selectedUser.id, updatePayload, authToken)
@@ -585,6 +609,7 @@ const UsersManagementModule = () => {
         fields={fields}
         getUserFields={(userId) => getUserFields(userId, fields)}
         getUserActivity={getUserActivity}
+        onLoadUserActivity={ensureUserActivityLoaded}
         onToggleBlock={handleToggleBlock}
         onEditUser={handleEditUser}
         onDeleteUser={handleDeleteUser}
@@ -890,8 +915,13 @@ const UsersManagementModule = () => {
                 </label>
                 <input
                   type="tel"
+                  inputMode="numeric"
                   value={editFormData.phone}
-                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, phone: formatPhone(e.target.value) })
+                  }
+                  maxLength={11}
+                  placeholder="999 999 999"
                   className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   disabled={isUpdating}
                 />

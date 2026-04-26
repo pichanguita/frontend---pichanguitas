@@ -267,30 +267,20 @@ const useAdminRegistrationForm = () => {
       // Obtener token (puede ser null si no está autenticado)
       const token = getToken()
 
-      // Recolectar todos los archivos File reales
+      // Recolectar archivos con su "kind" (document | photo) para que el
+      // backend los clasifique en registration_request_files.
       const allFiles = []
 
-      // Agregar archivos del campo attachedDocument si existe
       if (formData.attachedDocument) {
-        allFiles.push({ file: formData.attachedDocument })
+        allFiles.push({ file: formData.attachedDocument, kind: 'document' })
       }
 
-      // Agregar documentos con sus archivos File
-      if (formData.documents && formData.documents.length > 0) {
-        formData.documents.forEach((doc) => {
-          if (doc.file) {
-            allFiles.push({ file: doc.file })
-          }
-        })
+      for (const doc of formData.documents || []) {
+        if (doc.file) allFiles.push({ file: doc.file, kind: 'document' })
       }
 
-      // Agregar fotos con sus archivos File
-      if (formData.photos && formData.photos.length > 0) {
-        formData.photos.forEach((photo) => {
-          if (photo.file) {
-            allFiles.push({ file: photo.file })
-          }
-        })
+      for (const photo of formData.photos || []) {
+        if (photo.file) allFiles.push({ file: photo.file, kind: 'photo' })
       }
 
       // Enviar solicitud al backend con archivos

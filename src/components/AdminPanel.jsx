@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Swal from 'sweetalert2'
 import useBookingStore from '../store/bookingStore'
 import useAuthStore from '../store/authStore'
@@ -13,6 +13,8 @@ import { useModalManager, useFieldManagement, useAnniversaryCheck, useAdminCount
 import { useAdminPanelLogic } from '../hooks/useAdminPanelLogic'
 import { getAdminTabs } from '../config/adminTabs.config'
 import { fetchRegistrationRequestStatsAPI } from '../services/registrationRequests/registrationRequestsService'
+import { USER_ROLES, ADMIN_TYPES } from '../constants/roles'
+import { POLLING_CONFIG } from '../constants/businessConfig'
 
 const AdminPanel = () => {
   const [pendingRegistrationsCount, setPendingRegistrationsCount] = useState(0)
@@ -50,14 +52,10 @@ const AdminPanel = () => {
     sportTypes = [],
   } = bookingStore || {}
 
-  const { getUnreadCount = () => 0 } = alertStore || {}
+  const { alerts = [] } = alertStore || {}
 
   // Obtener funciones y fields del fieldStore para actualizar estado y obtener canchas pendientes
-  const {
-    updateFieldLocal,
-    getPendingFields: getFieldStorePendingFields,
-    fields: fieldStoreFields,
-  } = useFieldStore()
+  const { updateFieldLocal, fields: fieldStoreFields } = useFieldStore()
 
   // Hook for centralized modal management
   const { modals, openModal, closeModal } = useModalManager([
@@ -132,17 +130,16 @@ const AdminPanel = () => {
   } = useAdminCounts({
     user,
     existingReservations,
-    getUnreadCount,
-    getPendingFields: getFieldStorePendingFields, // Usar del fieldStore
+    alerts,
     pendingRefunds,
-    pendingRegistrationsCount, // Pasar el contador desde API
-    fields: fieldStoreFields, // Usar fields del fieldStore para consistencia
+    pendingRegistrationsCount,
+    fields: fieldStoreFields,
   })
 
   // Get tabs from centralized configuration
   const tabs = getAdminTabs({
     isSuperAdmin: isSuperAdmin(),
-    isRegularAdmin: user?.role === 'admin',
+    isRegularAdmin: user?.role === USER_ROLES.ADMIN,
     pendingFieldsCount,
     pendingRegistrations,
     pendingReservationsCount,
@@ -157,7 +154,10 @@ const AdminPanel = () => {
   const getFieldOwner = (fieldId) => {
     try {
       const owner = users.find(
-        (u) => u.role === 'admin' && u.adminType === 'field' && u.managedFields?.includes(fieldId)
+        (u) =>
+          u.role === USER_ROLES.ADMIN &&
+          u.adminType === ADMIN_TYPES.FIELD &&
+          u.managedFields?.includes(fieldId)
       )
       return owner || null
     } catch (error) {
@@ -217,6 +217,18 @@ const AdminPanel = () => {
     }
   }
 
+  // Refrescar el conteo de solicitudes de registro (solo aplica a super admin)
+  const refreshRegistrationStats = useCallback(async () => {
+    if (user?.role !== USER_ROLES.SUPER_ADMIN) return
+    try {
+      const stats = await fetchRegistrationRequestStatsAPI(authStore?.token || null)
+      setPendingRegistrationsCount(parseInt(stats.pending_requests) || 0)
+    } catch (error) {
+      console.error('❌ Error cargando stats de registration requests:', error)
+      setPendingRegistrationsCount(0)
+    }
+  }, [user?.role, authStore?.token])
+
   // Cargar datos del backend al montar el componente
   useEffect(() => {
     const loadInitialData = async () => {
@@ -233,22 +245,8 @@ const AdminPanel = () => {
           bookingStore.loadRefunds?.() || Promise.resolve(), // Cargar reembolsos del backend
           authStore.loadAllUsers?.() || Promise.resolve(),
           alertStore.loadAlerts?.() || Promise.resolve(), // Cargar alertas para mostrar toasts al iniciar sesion
+          refreshRegistrationStats(),
         ]
-
-        // Cargar stats de registration requests solo para super admin
-        const userIsSuperAdmin = user?.role === 'super_admin'
-        if (userIsSuperAdmin) {
-          promises.push(
-            fetchRegistrationRequestStatsAPI(authStore?.token || null)
-              .then((stats) => {
-                setPendingRegistrationsCount(parseInt(stats.pending_requests) || 0)
-              })
-              .catch((error) => {
-                console.error('❌ Error cargando stats de registration requests:', error)
-                setPendingRegistrationsCount(0)
-              })
-          )
-        }
 
         await Promise.all(promises)
       } catch {
@@ -257,7 +255,10 @@ const AdminPanel = () => {
     }
 
     loadInitialData()
-  }, [isAuthenticated]) // Solo depender de isAuthenticated para evitar loops
+    // Solo disparar en cambios de autenticación; los stores cambian constantemente
+    // y causarían loops. refreshRegistrationStats es estable por useCallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated])
 
   // Iniciar polling de alertas para notificaciones en tiempo real
   useEffect(() => {
@@ -267,8 +268,7 @@ const AdminPanel = () => {
     const { startPolling } = useAlertStore.getState()
 
     if (startPolling) {
-      // Iniciar polling cada 30 segundos
-      startPolling(30000)
+      startPolling(POLLING_CONFIG.ADMIN_COUNTERS_INTERVAL_MS)
     }
 
     // Cleanup: detener polling al desmontar o logout
@@ -277,6 +277,19 @@ const AdminPanel = () => {
       stop?.()
     }
   }, [isAuthenticated])
+
+  // Polling periódico de fields y solicitudes de registro para mantener los
+  // badges de "Aprobaciones" y "Solicitudes" sincronizados con el backend.
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const interval = setInterval(() => {
+      useFieldStore.getState().loadFields()
+      refreshRegistrationStats()
+    }, POLLING_CONFIG.ADMIN_COUNTERS_INTERVAL_MS)
+
+    return () => clearInterval(interval)
+  }, [isAuthenticated, refreshRegistrationStats])
 
   // Show nothing while redirecting to login
   if (!isAuthenticated) {

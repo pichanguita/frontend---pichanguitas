@@ -299,52 +299,16 @@ export const readFileAsDataURL = (file) => {
 }
 
 /**
- * Preparar datos del formulario para envío a la API
- * No incluye archivos File, solo metadata
+ * Prepara los datos del formulario para la API del backend.
+ * El backend espera una estructura plana (schema relacional); los archivos
+ * van aparte como multipart. No se envía metadata adicional.
  */
 export const prepareRegistrationData = (formData) => {
-  // Preparar metadata de documentos y fotos (sin objetos File ni base64)
-  const documentsMetadata = (formData.documents || []).map((doc) => ({
-    id: doc.id,
-    name: doc.name,
-    size: doc.size,
-    type: doc.type,
-    // No incluir doc.file ni doc.data
-  }))
+  const latitude =
+    formData.businessLatitude ?? formData.businessCoordinates?.[0] ?? null
+  const longitude =
+    formData.businessLongitude ?? formData.businessCoordinates?.[1] ?? null
 
-  const photosMetadata = (formData.photos || []).map((photo) => ({
-    id: photo.id,
-    name: photo.name,
-    size: photo.size,
-    type: photo.type,
-    // No incluir photo.file ni photo.data
-  }))
-
-  // Preparar documentos adicionales en formato JSON
-  const additionalDocuments = {
-    sportTypes: formData.sportTypes || [],
-    businessRuc: formData.businessRuc || '',
-    businessPhone: formData.businessPhone || '',
-    businessReference: formData.businessReference || '',
-    businessCoordinates: {
-      latitude: formData.businessLatitude || formData.businessCoordinates?.[0],
-      longitude: formData.businessLongitude || formData.businessCoordinates?.[1],
-    },
-    credentials: {
-      username: formData.username,
-      password: btoa(formData.password), // Codificación básica para almacenamiento temporal
-    },
-    experience: formData.experience || '',
-    reasonToJoin: formData.reasonToJoin || '',
-    addressReferences: formData.addressReferences || '',
-    // Solo metadata de documentos y fotos
-    documentsCount: documentsMetadata.length,
-    photosCount: photosMetadata.length,
-    documentsMetadata: documentsMetadata,
-    photosMetadata: photosMetadata,
-  }
-
-  // Retornar datos en el formato que espera la API del backend
   return {
     name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
     email: formData.email.trim().toLowerCase(),
@@ -355,7 +319,23 @@ export const prepareRegistrationData = (formData) => {
     department: formData.department.trim(),
     province: formData.city.trim(), // city se mapea a province
     district: formData.district.trim(),
-    documents: additionalDocuments,
+
+    // Campos planos del nuevo esquema
+    businessRuc: formData.businessRuc || null,
+    businessPhone: formData.businessPhone || null,
+    businessReference: formData.businessReference || null,
+    businessLatitude: latitude,
+    businessLongitude: longitude,
+    addressReferences: formData.addressReferences || null,
+    experience: formData.experience || null,
+    reasonToJoin: formData.reasonToJoin || null,
+
+    // Deportes asociados
+    sportTypes: formData.sportTypes || [],
+
+    // Credenciales (password codificada en base64 — se rehashea al aprobar)
+    credentialsUsername: formData.username,
+    credentialsPassword: btoa(formData.password),
   }
 }
 

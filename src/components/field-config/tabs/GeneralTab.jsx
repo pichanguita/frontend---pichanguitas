@@ -308,8 +308,10 @@ const GeneralTab = ({
                   Imagen {index + 1}
                 </div>
 
-                {/* Indicador de tipo (local vs URL) */}
-                {(imageUrl.startsWith('/uploads/') || imageUrl.includes('wasabisys.com')) && (
+                {/* Indicador de imagen gestionada por el sistema */}
+                {(imageUrl.startsWith('/api/media/') ||
+                  imageUrl.includes('wasabisys.com') ||
+                  imageUrl.startsWith('/uploads/')) && (
                   <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
                     <Upload className="w-3 h-3" />
                     <span>Subida</span>

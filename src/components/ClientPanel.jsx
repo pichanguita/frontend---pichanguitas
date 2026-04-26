@@ -34,18 +34,25 @@ const ClientPanel = () => {
 
   const { isAuthenticated, user, logout, checkSession, extendSession, isCustomer } = useAuthStore()
 
-  const { existingReservations, loadReservations, freeHoursToUse, setFreeHoursToUse } =
-    useBookingStore()
+  const {
+    existingReservations,
+    loadReservations,
+    freeHoursToUse,
+    setFreeHoursToUse,
+    availableFreeHours,
+    loadMyFreeHours,
+  } = useBookingStore()
   const { fields, loadFields } = useFieldStore()
   const { images } = useConfigStore()
 
-  // Cargar reservas y campos al montar el componente
+  // Cargar reservas, campos y horas gratis al montar el componente
   useEffect(() => {
     if (isAuthenticated && user) {
       loadReservations()
       loadFields()
+      loadMyFreeHours()
     }
-  }, [isAuthenticated, user, loadReservations, loadFields])
+  }, [isAuthenticated, user, loadReservations, loadFields, loadMyFreeHours])
 
   // Cargar promociones para el badge
   useEffect(() => {
@@ -191,75 +198,83 @@ const ClientPanel = () => {
   }
 
   const tabs = [
-    { id: 'canchas', label: 'Reservar', icon: MapPin },
-    { id: 'reservas', label: 'Historial', icon: Calendar },
-    { id: 'promociones', label: 'Promociones', icon: Gift, badge: promotionsBadge },
-    { id: 'logros', label: 'Mis Logros', icon: Trophy },
-    { id: 'perfil', label: 'Mi Perfil', icon: User },
+    { id: 'canchas', label: 'Reservar', shortLabel: 'Reservar', icon: MapPin },
+    { id: 'reservas', label: 'Historial', shortLabel: 'Historial', icon: Calendar },
+    {
+      id: 'promociones',
+      label: 'Promociones',
+      shortLabel: 'Promos',
+      icon: Gift,
+      badge: promotionsBadge,
+    },
+    { id: 'logros', label: 'Mis Logros', shortLabel: 'Logros', icon: Trophy },
+    { id: 'perfil', label: 'Mi Perfil', shortLabel: 'Perfil', icon: User },
   ]
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Fijo */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 gap-3 sm:gap-0">
-            <div className="flex items-center gap-3">
+      {/* Bloque Header + Navegación (sticky, sin solapar contenido) */}
+      <div className="sticky top-0 z-40 bg-white shadow-md">
+        {/* Header */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 border-b border-gray-100 sm:border-b-0">
+          <div className="flex flex-row justify-between items-center py-2.5 sm:py-4 gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               {/* Logo */}
               {images?.logo?.url ? (
                 <img
                   src={images.logo.url}
                   alt={images.logo.alt || 'Logo'}
-                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 object-contain rounded-lg"
+                  className="w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 object-contain rounded-lg flex-shrink-0"
                 />
               ) : (
-                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-2xl sm:text-3xl md:text-4xl">⚽</span>
+                <div className="w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
+                  <span className="text-xl sm:text-3xl md:text-4xl">⚽</span>
                 </div>
               )}
 
               {/* Título y Subtítulo */}
-              <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
                   Canchas Apurímac
                 </h1>
-                <p className="text-xs sm:text-sm text-gray-600">Bienvenido, {user?.name}</p>
+                <p className="text-[11px] sm:text-sm text-gray-600 truncate">
+                  Bienvenido, {user?.name}
+                </p>
               </div>
             </div>
 
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 w-full sm:w-auto justify-center"
+              aria-label="Cerrar Sesión"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 flex-shrink-0"
             >
               <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Cerrar Sesión</span>
+              <span className="hidden sm:inline">Cerrar Sesión</span>
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Navigation Fijo */}
-      <div className="fixed top-[72px] sm:top-[80px] left-0 right-0 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-          <nav className="flex justify-center overflow-x-auto gap-2 sm:gap-4 md:gap-8">
+        {/* Navegación */}
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 sm:border-b sm:border-gray-200">
+          <nav className="flex justify-start sm:justify-center overflow-x-auto no-scrollbar gap-1 sm:gap-4 md:gap-8">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center gap-1 sm:gap-2 py-3 sm:py-4 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 whitespace-nowrap ${
+                  className={`relative flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-4 px-2.5 sm:px-3 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
                       ? 'border-green-500 text-green-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                  <span className="sm:hidden">{tab.shortLabel}</span>
                   {/* Badge de notificación */}
                   {tab.badge > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 text-xs font-bold text-white bg-red-500 rounded-full shadow-sm">
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-[20px] px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold text-white bg-red-500 rounded-full shadow-sm flex-shrink-0">
                       {tab.badge}
                     </span>
                   )}
@@ -270,34 +285,31 @@ const ClientPanel = () => {
         </div>
       </div>
 
-      {/* Espaciador para header y nav fijos */}
-      <div className="h-[120px] sm:h-[136px]" />
-
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {activeTab === 'canchas' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-4 sm:space-y-6"
           >
             {/* Hero Banner */}
-            <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-center sm:text-left">
-                  <h2 className="text-2xl sm:text-3xl font-bold mb-2">
+            <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-white shadow-lg">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+                <div className="text-left">
+                  <h2 className="text-lg sm:text-3xl font-bold mb-1 sm:mb-2 leading-tight">
                     Hola {user?.name?.split(' ')[0]}, ¿jugamos hoy?
                   </h2>
-                  <p className="text-green-100 text-sm sm:text-base">
+                  <p className="text-green-100 text-xs sm:text-base">
                     Reserva tu cancha favorita en segundos
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex">
                   <button
                     onClick={() => setIsBookingModalOpen(true)}
-                    className="bg-white text-green-600 font-bold py-3 px-6 rounded-xl shadow-lg transition-all duration-200 inline-flex items-center gap-2 hover:shadow-xl hover:scale-105"
+                    className="w-full sm:w-auto bg-white text-green-600 font-bold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg transition-all duration-200 inline-flex items-center justify-center gap-2 hover:shadow-xl hover:scale-105 text-sm sm:text-base"
                   >
-                    <Calendar className="w-5 h-5" />
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>Reservar</span>
                   </button>
                 </div>
@@ -382,8 +394,10 @@ const ClientPanel = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <PromotionsView
               onNavigateToFields={(options) => {
-                if (options?.useFreeHours && options?.freeHoursAvailable > 0) {
-                  setFreeHoursToUse(options.freeHoursAvailable)
+                // Auto-aplicación universal: BookingFlow sincroniza freeHoursToUse al
+                // entrar a la confirmación si hay saldo. El botón "Usar mis horas
+                // gratis ahora" simplemente abre el modal de reserva.
+                if (options?.useFreeHours && availableFreeHours > 0) {
                   setIsBookingModalOpen(true)
                 } else {
                   setActiveTab('canchas')
@@ -413,29 +427,31 @@ const ClientPanel = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
             onClick={() => {
               setIsBookingModalOpen(false)
               setBookingView('booking')
             }}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-6xl h-[95vh] sm:h-auto sm:max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header del Modal */}
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center rounded-t-xl sm:rounded-t-2xl z-10">
-                <div>
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-start gap-2 rounded-t-2xl z-10">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 truncate">
                     {bookingView === 'booking' ? 'Reservar Cancha' : 'Completar Pago'}
                   </h2>
                   {freeHoursToUse > 0 && bookingView === 'booking' && (
-                    <p className="text-sm text-amber-600 font-medium flex items-center gap-1">
-                      <Gift className="w-4 h-4" />
-                      Usando {freeHoursToUse} hora{freeHoursToUse > 1 ? 's' : ''} gratis
+                    <p className="text-xs sm:text-sm text-amber-600 font-medium flex items-center gap-1 mt-0.5">
+                      <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="truncate">
+                        Usando {freeHoursToUse} hora{freeHoursToUse > 1 ? 's' : ''} gratis
+                      </span>
                     </p>
                   )}
                 </div>
@@ -445,14 +461,14 @@ const ClientPanel = () => {
                     setBookingView('booking')
                     setFreeHoursToUse(0)
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg flex-shrink-0"
                 >
                   <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
 
               {/* Contenido del Modal */}
-              <div className="p-4 sm:p-6">
+              <div className="p-3 sm:p-6">
                 {bookingView === 'booking' ? (
                   <BookingFlow
                     onPaymentStep={() => setBookingView('payment')}
@@ -465,6 +481,8 @@ const ClientPanel = () => {
                       setBookingView('booking')
                       setIsBookingModalOpen(false)
                       setFreeHoursToUse(0)
+                      // Refrescar saldo de horas gratis tras consumirlas en la reserva
+                      loadMyFreeHours()
                       setActiveTab('reservas')
                     }}
                   />

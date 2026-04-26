@@ -50,16 +50,13 @@ export const SPORT_ICONS_FULL = {
   multiuso: '🏟️ Multideportiva',
 }
 
-// Nombres de días en español
-export const DAY_NAMES = {
-  monday: 'Lunes',
-  tuesday: 'Martes',
-  wednesday: 'Miércoles',
-  thursday: 'Jueves',
-  friday: 'Viernes',
-  saturday: 'Sábado',
-  sunday: 'Domingo',
-}
+import { daysOfWeek } from '@/utils/field-config/fieldConfigConstants'
+
+// Nombres de días en español — derivados de la fuente única (daysOfWeek)
+export const DAY_NAMES = daysOfWeek.reduce((acc, { key, label }) => {
+  acc[key] = label
+  return acc
+}, {})
 
 // Etiquetas de dimensiones
 export const DIMENSION_LABELS = {

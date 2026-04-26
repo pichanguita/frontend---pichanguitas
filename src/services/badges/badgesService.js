@@ -36,7 +36,7 @@ export const fetchBadges = async () => {
 
 /**
  * Crear una nueva insignia
- * @param {Object} badgeData - { name, icon, description, criteria_type, is_active, tiers }
+ * @param {Object} badgeData - { name, icon, description, criteria_id, is_active, tiers }
  * @returns {Promise<Object>} Insignia creada
  */
 export const createBadgeAPI = async (badgeData) => {

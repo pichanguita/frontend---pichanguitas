@@ -1,48 +1,35 @@
 import L from 'leaflet'
-import { FIELD_STATUS, FIELD_APPROVAL_STATUS } from '@/constants'
-
-export const COLORS = [
-  '#22c55e',
-  '#3b82f6',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#84cc16',
-]
-
-// Colores hex para marcadores del mapa (necesarios para SVG de Leaflet)
-export const MAP_MARKER_HEX = {
-  [FIELD_STATUS.AVAILABLE]: '#22c55e',
-  [FIELD_STATUS.MAINTENANCE]: '#f59e0b',
-  [FIELD_STATUS.CLOSED]: '#ef4444',
-  approvalPending: '#3b82f6',
-  approvalRejected: '#ef4444',
-  default: '#ef4444',
-}
-
-// Items de la leyenda del mapa (label + color Tailwind)
-export const MAP_LEGEND_ITEMS = [
-  { label: 'Disponible (Aprobada)', colorClass: 'bg-green-500' },
-  { label: 'En Mantenimiento', colorClass: 'bg-amber-500' },
-  { label: 'Pendiente de Aprobación', colorClass: 'bg-blue-500' },
-  { label: 'Rechazada / Cerrada', colorClass: 'bg-red-500' },
-]
+import {
+  FIELD_CATEGORY,
+  FIELD_CATEGORY_HEX,
+  FIELD_CATEGORY_LABELS,
+  FIELD_CATEGORY_TAILWIND,
+  getFieldCategory,
+} from '@/constants'
 
 /**
- * Determina el color hex del marcador según el estado de aprobación y operativo.
- * Prioridad: approvalStatus > status operativo.
+ * Items de la leyenda del mapa — se deriva dinámicamente de FIELD_CATEGORY
+ * para mantener una única fuente de verdad (labels + colores).
+ */
+export const MAP_LEGEND_ITEMS = [
+  FIELD_CATEGORY.ACTIVE,
+  FIELD_CATEGORY.MAINTENANCE,
+  FIELD_CATEGORY.PENDING,
+  FIELD_CATEGORY.REJECTED,
+  FIELD_CATEGORY.CLOSED,
+].map((category) => ({
+  category,
+  label: FIELD_CATEGORY_LABELS[category],
+  colorClass: FIELD_CATEGORY_TAILWIND[category].dot,
+}))
+
+/**
+ * Determina el color hex del marcador según la categoría efectiva de la cancha.
+ * Usa la prioridad `approvalStatus > status` definida en getFieldCategory.
  * @param {Object} field - Cancha con approvalStatus y status
  * @returns {string} Color hex para el marcador SVG
  */
-export const getFieldMarkerColor = (field) => {
-  if (field.approvalStatus === FIELD_APPROVAL_STATUS.PENDING) return MAP_MARKER_HEX.approvalPending
-  if (field.approvalStatus === FIELD_APPROVAL_STATUS.REJECTED) return MAP_MARKER_HEX.approvalRejected
-  if (field.status === FIELD_STATUS.AVAILABLE) return MAP_MARKER_HEX[FIELD_STATUS.AVAILABLE]
-  if (field.status === FIELD_STATUS.MAINTENANCE) return MAP_MARKER_HEX[FIELD_STATUS.MAINTENANCE]
-  return MAP_MARKER_HEX.default
-}
+export const getFieldMarkerColor = (field) => FIELD_CATEGORY_HEX[getFieldCategory(field)]
 
 // Formatear moneda con comas y decimales: 2936 -> "2,936.00"
 export const formatCurrency = (amount) => {
@@ -139,6 +126,9 @@ export const getDistrictStats = (
         totalFields: 0,
         activeFields: 0,
         maintenanceFields: 0,
+        closedFields: 0,
+        pendingFields: 0,
+        rejectedFields: 0,
         totalReservations: 0,
         revenue: 0,
         sports: new Set(),
@@ -147,10 +137,18 @@ export const getDistrictStats = (
 
     stats[field.distrito].totalFields++
 
-    if (field.status === FIELD_STATUS.AVAILABLE) {
+    // Categoría efectiva con prioridad approvalStatus > status — sin doble conteo
+    const category = getFieldCategory(field)
+    if (category === FIELD_CATEGORY.ACTIVE) {
       stats[field.distrito].activeFields++
-    } else if (field.status === FIELD_STATUS.MAINTENANCE) {
+    } else if (category === FIELD_CATEGORY.MAINTENANCE) {
       stats[field.distrito].maintenanceFields++
+    } else if (category === FIELD_CATEGORY.CLOSED) {
+      stats[field.distrito].closedFields++
+    } else if (category === FIELD_CATEGORY.PENDING) {
+      stats[field.distrito].pendingFields++
+    } else if (category === FIELD_CATEGORY.REJECTED) {
+      stats[field.distrito].rejectedFields++
     }
 
     const fieldReservations = existingReservations.filter((r) => r.fieldId === field.id)
@@ -232,21 +230,53 @@ export const getTrendData = (existingReservations, fields) => {
   return last7Days
 }
 
+/**
+ * Agrega canchas por categoría efectiva (prioridad approvalStatus > status).
+ * @param {Array} fields
+ * @returns {Record<string, number>} contadores por clave de FIELD_CATEGORY
+ */
+export const countFieldsByCategory = (fields) => {
+  const base = Object.values(FIELD_CATEGORY).reduce((acc, key) => {
+    acc[key] = 0
+    return acc
+  }, {})
+  if (!Array.isArray(fields)) return base
+  fields.forEach((field) => {
+    const category = getFieldCategory(field)
+    base[category] = (base[category] || 0) + 1
+  })
+  return base
+}
+
 export const calculateKPIs = (fields, existingReservations) => {
+  const emptyCounts = countFieldsByCategory([])
   if (!Array.isArray(fields)) {
     return {
       totalFields: 0,
       activeFields: 0,
+      maintenanceFields: 0,
+      closedFields: 0,
+      pendingFields: 0,
+      rejectedFields: 0,
+      categoryCounts: emptyCounts,
       totalReservations: 0,
       todayReservations: 0,
       totalRevenue: 0,
       totalPending: 0,
     }
   }
+
+  const categoryCounts = countFieldsByCategory(fields)
+
   if (!Array.isArray(existingReservations)) {
     return {
       totalFields: fields.length,
-      activeFields: 0,
+      activeFields: categoryCounts[FIELD_CATEGORY.ACTIVE],
+      maintenanceFields: categoryCounts[FIELD_CATEGORY.MAINTENANCE],
+      closedFields: categoryCounts[FIELD_CATEGORY.CLOSED],
+      pendingFields: categoryCounts[FIELD_CATEGORY.PENDING],
+      rejectedFields: categoryCounts[FIELD_CATEGORY.REJECTED],
+      categoryCounts,
       totalReservations: 0,
       todayReservations: 0,
       totalRevenue: 0,
@@ -255,7 +285,11 @@ export const calculateKPIs = (fields, existingReservations) => {
   }
 
   const totalFields = fields.length
-  const activeFields = fields.filter((f) => f.status === FIELD_STATUS.AVAILABLE).length
+  const activeFields = categoryCounts[FIELD_CATEGORY.ACTIVE]
+  const maintenanceFields = categoryCounts[FIELD_CATEGORY.MAINTENANCE]
+  const closedFields = categoryCounts[FIELD_CATEGORY.CLOSED]
+  const pendingFields = categoryCounts[FIELD_CATEGORY.PENDING]
+  const rejectedFields = categoryCounts[FIELD_CATEGORY.REJECTED]
   const totalReservations = existingReservations.length
 
   const todayReservations = existingReservations.filter((r) => {
@@ -314,6 +348,11 @@ export const calculateKPIs = (fields, existingReservations) => {
   return {
     totalFields,
     activeFields,
+    maintenanceFields,
+    closedFields,
+    pendingFields,
+    rejectedFields,
+    categoryCounts,
     totalReservations,
     todayReservations,
     totalRevenue,

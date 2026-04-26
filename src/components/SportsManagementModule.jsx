@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Trophy,
   Plus,
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import useFieldStore from '../store/modules/fieldStore'
+import useAuthStore from '../store/authStore'
+import { fetchSportTypeFieldsCount } from '../services/sportTypes/sportTypesService'
 import Swal from 'sweetalert2'
 
 /**
@@ -50,6 +52,9 @@ const SportsManagementModule = () => {
   })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Evita que el modal se cierre cuando un drag de selección de texto inicia
+  // dentro del modal y termina fuera (mouseup sobre el overlay).
+  const overlayMouseDownTargetRef = useRef(null)
 
   // Iconos disponibles para deportes
   const availableIcons = [
@@ -260,15 +265,41 @@ const SportsManagementModule = () => {
 
   /**
    * ✅ DELETE INTEGRADO CON BACKEND
-   * Elimina un deporte (soft delete) en la base de datos
+   * Elimina un deporte (soft delete) en la base de datos.
+   * Antes de confirmar, consulta cuántas canchas están asociadas para
+   * mostrar un mensaje informativo al usuario.
    */
   const handleDelete = async (sport) => {
+    // Consultar cuántas canchas usan este deporte para el mensaje informativo.
+    // Si falla la consulta, continuamos con el flujo sin bloquear la eliminación.
+    let fieldsCount = 0
+    try {
+      const token = useAuthStore.getState().token
+      fieldsCount = await fetchSportTypeFieldsCount(sport.id, token)
+    } catch (err) {
+      console.warn('⚠️ No se pudo obtener el conteo de canchas asociadas:', err.message)
+    }
+
+    const infoMessage =
+      fieldsCount > 0
+        ? `<div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-left">
+             <p class="text-sm font-semibold text-amber-800 mb-1">
+               ⚠️ Este deporte está asociado a ${fieldsCount} ${fieldsCount === 1 ? 'cancha registrada' : 'canchas registradas'}.
+             </p>
+             <p class="text-xs text-amber-700">
+               Las canchas existentes conservarán su información y seguirán funcionando normalmente.
+               El deporte dejará de estar disponible para asignar a nuevas canchas.
+             </p>
+           </div>`
+        : `<p class="text-sm text-gray-600">Este deporte no está asociado a ninguna cancha.</p>`
+
     const result = await Swal.fire({
       title: '¿Eliminar Deporte?',
       html: `
         <div class="text-left">
           <p class="mb-2">¿Estás seguro de eliminar el deporte <strong>${sport.name}</strong>?</p>
-          <p class="text-sm text-gray-600">Esta acción marcará el deporte como inactivo en el sistema.</p>
+          <p class="text-sm text-gray-600 mb-2">Esta acción marcará el deporte como inactivo en el sistema.</p>
+          ${infoMessage}
         </div>
       `,
       icon: 'warning',
@@ -446,7 +477,18 @@ const SportsManagementModule = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowAddModal(false)}
+            onMouseDown={(e) => {
+              overlayMouseDownTargetRef.current = e.target
+            }}
+            onClick={(e) => {
+              if (
+                overlayMouseDownTargetRef.current === e.currentTarget &&
+                e.target === e.currentTarget
+              ) {
+                setShowAddModal(false)
+              }
+              overlayMouseDownTargetRef.current = null
+            }}
           >
             <motion.div
               initial={{ scale: 0.95 }}

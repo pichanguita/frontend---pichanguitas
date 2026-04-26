@@ -104,35 +104,28 @@ export const createRegistrationRequestWithFilesAPI = async (
   try {
     const formData = new FormData()
 
-    // Agregar campos de texto
-    Object.keys(requestData).forEach((key) => {
-      if (key === 'documents') {
-        // Documentos como JSON string
-        formData.append('documents', JSON.stringify(requestData[key]))
-      } else if (requestData[key] !== null && requestData[key] !== undefined) {
-        formData.append(key, requestData[key])
+    // Campos escalares + arrays (sportTypes se envía repitiendo la clave)
+    Object.entries(requestData).forEach(([key, value]) => {
+      if (value === null || value === undefined) return
+      if (Array.isArray(value)) {
+        value.forEach((item) => formData.append(key, item))
+      } else {
+        formData.append(key, value)
       }
     })
 
-    // Generar un requestId único para organizar archivos
-    const requestId = `request_${Date.now()}`
-    formData.append('requestId', requestId)
-
-    // Agregar archivos
-    files.forEach((fileObj, _index) => {
-      if (fileObj.file) {
-        // El objeto tiene una propiedad 'file' (File object real)
-        formData.append('files', fileObj.file, fileObj.file.name)
-      }
+    // Archivos: el fieldname diferencia documents vs photos para que el
+    // backend asigne el kind correcto en registration_request_files.
+    files.forEach((fileObj) => {
+      if (!fileObj.file) return
+      const fieldname = fileObj.kind === 'photo' ? 'photos' : 'documents'
+      formData.append(fieldname, fileObj.file, fileObj.file.name)
     })
 
-    // Headers sin Content-Type (se establece automáticamente con boundary)
     const headers = {}
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+    if (token) headers['Authorization'] = `Bearer ${token}`
 
-    const response = await fetch(`${API_CONFIG.BASE_URL}/api/registration-requests/with-files`, {
+    const response = await fetch(API_CONFIG.REGISTRATION_REQUESTS.CREATE_WITH_FILES, {
       method: 'POST',
       headers,
       body: formData,

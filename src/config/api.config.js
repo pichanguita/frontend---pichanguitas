@@ -89,7 +89,6 @@ export const API_CONFIG = {
     GET_BY_ADMIN: (adminId) => `${API_BASE_URL}/api/customers/by-admin/${adminId}`,
     GET_BY_ID: (id) => `${API_BASE_URL}/api/customers/${id}`,
     GET_BY_PHONE: (phone) => `${API_BASE_URL}/api/customers/phone/${phone}`,
-    GET_PROMOTIONS: (id) => `${API_BASE_URL}/api/customers/${id}/promotions`,
     CREATE: `${API_BASE_URL}/api/customers`,
     UPDATE: (id) => `${API_BASE_URL}/api/customers/${id}`,
     UPDATE_STATS: (id) => `${API_BASE_URL}/api/customers/${id}/stats`,
@@ -100,6 +99,7 @@ export const API_CONFIG = {
   SPORT_TYPES: {
     GET_ALL: `${API_BASE_URL}/api/sport-types`,
     GET_BY_ID: (id) => `${API_BASE_URL}/api/sport-types/${id}`,
+    GET_FIELDS_COUNT: (id) => `${API_BASE_URL}/api/sport-types/${id}/fields-count`,
     CREATE: `${API_BASE_URL}/api/sport-types`,
     UPDATE: (id) => `${API_BASE_URL}/api/sport-types/${id}`,
     DELETE: (id) => `${API_BASE_URL}/api/sport-types/${id}`,
@@ -158,11 +158,7 @@ export const API_CONFIG = {
   // Endpoints de reseñas
   REVIEWS: {
     GET_ALL: `${API_BASE_URL}/api/reviews`,
-    GET_BY_FIELD: (fieldId) => `${API_BASE_URL}/api/reviews/field/${fieldId}`,
-    GET_STATS: (fieldId) => `${API_BASE_URL}/api/reviews/stats/${fieldId}`,
     CREATE: `${API_BASE_URL}/api/reviews`,
-    UPDATE: (id) => `${API_BASE_URL}/api/reviews/${id}`,
-    DELETE: (id) => `${API_BASE_URL}/api/reviews/${id}`,
   },
 
   // Endpoints de insignias
@@ -240,8 +236,11 @@ export const API_CONFIG = {
     GET_BY_ID: (id) => `${API_BASE_URL}/api/registration-requests/${id}`,
     GET_STATS: `${API_BASE_URL}/api/registration-requests/stats`,
     CREATE: `${API_BASE_URL}/api/registration-requests`,
+    CREATE_WITH_FILES: `${API_BASE_URL}/api/registration-requests/with-files`,
     APPROVE: (id) => `${API_BASE_URL}/api/registration-requests/${id}/approve`,
     REJECT: (id) => `${API_BASE_URL}/api/registration-requests/${id}/reject`,
+    DOWNLOAD_FILE: (id, fileId) =>
+      `${API_BASE_URL}/api/registration-requests/${id}/files/${fileId}/download`,
   },
 
   // Endpoints de roles y permisos
@@ -365,6 +364,11 @@ export const API_CONFIG = {
     TOGGLE: (id) => `${API_BASE_URL}/api/social-media/${id}/toggle`,
     DELETE: (id) => `${API_BASE_URL}/api/social-media/${id}`,
     BULK_UPDATE: `${API_BASE_URL}/api/social-media/bulk`,
+  },
+
+  // Endpoints de registro de actividad
+  ACTIVITY_LOGS: {
+    GET_BY_USER: (userId) => `${API_BASE_URL}/api/activity-logs/user/${userId}`,
   },
 
   // Timeout para las peticiones (en milisegundos)

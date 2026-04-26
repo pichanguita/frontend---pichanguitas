@@ -16,7 +16,7 @@ import {
 import { toISODateString } from '../utils/dateFormatters'
 
 export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => {
-  const { user, getManagedFields } = useAuthStore()
+  const { user } = useAuthStore()
   const { getVisibleFields } = useBookingStore()
   const { customers, loadCustomers } = useCustomerStore()
 
@@ -35,20 +35,35 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
         return []
       }
 
-      const managedFieldIds = getManagedFields()
-
-      if (managedFieldIds.length === 0) {
+      // Super admin o admin general: ve todas las canchas
+      if (
+        user?.role === 'super_admin' ||
+        (user?.role === 'admin' && user?.adminType === 'general')
+      ) {
         return allFields
       }
 
-      const filtered = allFields.filter((field) => managedFieldIds.includes(field.id))
-      return filtered
+      // Admin de cancha: filtrar por adminId (canchas creadas/asignadas al admin actual)
+      // o por managedFields (sistema legacy, poblado en login)
+      const isFieldAdmin =
+        user?.role === 'admin' &&
+        (['field', 'field_owner', 'field_admin'].includes(user?.adminType) ||
+          user?.id_rol === 2)
+
+      if (isFieldAdmin) {
+        const managedFieldIds = user?.managedFields || []
+        return allFields.filter(
+          (field) => field.adminId === user.id || managedFieldIds.includes(field.id)
+        )
+      }
+
+      return []
     } catch (error) {
       console.error('❌ Error obteniendo canchas visibles:', error)
       return []
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
+  }, [isOpen, user?.id, user?.role, user?.adminType, user?.id_rol, user?.managedFields])
 
   // ✅ Cargar clientes desde el backend cuando se abre el modal
   useEffect(() => {

@@ -107,17 +107,22 @@ export const FieldCard = ({
             </div>
           )}
 
-          {/* Badges de estado */}
+          {/* Badges de estado — prioridad approvalStatus > status:
+              una cancha rechazada o pendiente no muestra su estado operativo
+              porque no puede ser usada (regla definida en getFieldCategory) */}
           <div className="flex items-center space-x-2 mt-3">
-            {/* Estado de disponibilidad */}
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusBadgeClass}`}>
-              {FIELD_STATUS_LABELS[field.status] || field.status}
-            </span>
-
-            {/* Estado de aprobación */}
+            {/* Estado de aprobación (tiene prioridad cuando no está aprobada) */}
             {field.approvalStatus && (
               <span className={`px-2 py-1 text-xs font-medium rounded-full ${approvalBadgeClass}`}>
                 {FIELD_APPROVAL_STATUS_LABELS[field.approvalStatus] || field.approvalStatus}
+              </span>
+            )}
+
+            {/* Estado de disponibilidad — solo si está aprobada o no tiene approvalStatus */}
+            {(!field.approvalStatus ||
+              field.approvalStatus === FIELD_APPROVAL_STATUS.APPROVED) && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusBadgeClass}`}>
+                {FIELD_STATUS_LABELS[field.status] || field.status}
               </span>
             )}
           </div>

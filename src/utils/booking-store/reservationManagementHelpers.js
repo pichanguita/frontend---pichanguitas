@@ -38,27 +38,6 @@ export const rejectReservationHelper = (reservations, reservationId, rejectionRe
 }
 
 /**
- * Completar una reserva
- */
-export const completeReservationHelper = (reservations, reservationId) => {
-  const reservation = reservations.find((r) => r.id === reservationId)
-  if (!reservation) return { success: false, reservations, reservation: null }
-
-  const updatedReservations = reservations.map((r) => {
-    if (r.id === reservationId) {
-      return {
-        ...r,
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-      }
-    }
-    return r
-  })
-
-  return { success: true, reservations: updatedReservations, reservation }
-}
-
-/**
  * Actualizar información de pago de una reserva
  */
 export const updateReservationPaymentHelper = (reservations, reservationId, paymentData) => {

@@ -120,7 +120,8 @@ export const usePromotions = () => {
   // Calcular horas gratis basado en reglas de promoción
   const calculateFreeHoursForCustomer = (customer) => {
     let totalEarnedHours = 0
-    const totalHours = customer.accumulatedHours || 0
+    // total_hours acumula el histórico de horas jugadas del cliente
+    const totalHours = parseFloat(customer.totalHours) || 0
 
     promotionRules
       .filter((rule) => rule.isActive)

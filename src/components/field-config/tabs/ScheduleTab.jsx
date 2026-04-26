@@ -1,5 +1,9 @@
 import React from 'react'
 import { Clock } from 'lucide-react'
+import {
+  DEFAULT_SCHEDULE_OPEN_TIME,
+  DEFAULT_SCHEDULE_CLOSE_TIME,
+} from '@/utils/field-config/fieldConfigConstants'
 
 const ScheduleTab = ({ schedule, onScheduleChange, daysOfWeek }) => {
   return (
@@ -35,7 +39,7 @@ const ScheduleTab = ({ schedule, onScheduleChange, daysOfWeek }) => {
                   <span className="text-sm text-secondary-600">De:</span>
                   <input
                     type="time"
-                    value={schedule[day.key]?.openTime || '17:00'}
+                    value={schedule[day.key]?.openTime || DEFAULT_SCHEDULE_OPEN_TIME}
                     onChange={(e) => onScheduleChange(day.key, 'openTime', e.target.value)}
                     className="px-3 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:border-primary-500"
                   />
@@ -45,7 +49,7 @@ const ScheduleTab = ({ schedule, onScheduleChange, daysOfWeek }) => {
                   <span className="text-sm text-secondary-600">Hasta:</span>
                   <input
                     type="time"
-                    value={schedule[day.key]?.closeTime || '23:00'}
+                    value={schedule[day.key]?.closeTime || DEFAULT_SCHEDULE_CLOSE_TIME}
                     onChange={(e) => onScheduleChange(day.key, 'closeTime', e.target.value)}
                     className="px-3 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:border-primary-500"
                   />

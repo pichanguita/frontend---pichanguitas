@@ -1,112 +1,18 @@
 /**
  * Handlers para PaymentControlModule
  *
- * Maneja las acciones de generación, registro y visualización de pagos con SweetAlert
+ * Maneja las acciones de registro y visualización de pagos con SweetAlert
  */
 
 import Swal from 'sweetalert2'
-import { getPaymentStatusInfo, getMonthName } from './paymentUtils'
-import { API_CONFIG } from '../../config/api.config'
-
-/**
- * Maneja la generación de pagos mensuales
- */
-export const handleGeneratePayments = async ({
-  selectedYear,
-  selectedMonth,
-  getAllPaymentConfigs,
-  generateMonthlyPayments,
-  _refreshAll,
-}) => {
-  const configs = getAllPaymentConfigs()
-  const activeConfigs = configs.filter((c) => c.isActive)
-
-  if (activeConfigs.length === 0) {
-    // Intentar generar de todas formas (los configs pueden estar en la BD)
-    const result = await Swal.fire({
-      title: '¿Generar pagos mensuales?',
-      html: `Se generarán los cobros para <strong>${getMonthName(selectedMonth)} ${selectedYear}</strong> basados en las configuraciones de la base de datos.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, generar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#10b981',
-    })
-
-    if (result.isConfirmed) {
-      try {
-        const generated = await generateMonthlyPayments(selectedYear, selectedMonth)
-        if (generated > 0) {
-          Swal.fire({
-            icon: 'success',
-            title: '¡Pagos generados!',
-            text: `Se generaron ${generated} pagos pendientes`,
-            timer: 2000,
-          })
-          await refreshAll()
-        } else {
-          Swal.fire({
-            icon: 'info',
-            title: 'Ya existen',
-            text: 'Los pagos para este mes ya fueron generados',
-          })
-        }
-      } catch (_error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron generar los pagos',
-        })
-      }
-    }
-    return
-  }
-
-  const result = await Swal.fire({
-    title: '¿Generar pagos mensuales?',
-    html: `Se crearán <strong>${activeConfigs.length}</strong> pagos pendientes para <strong>${getMonthName(
-      selectedMonth
-    )} ${selectedYear}</strong>`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Sí, generar',
-    cancelButtonText: 'Cancelar',
-    confirmButtonColor: '#10b981',
-  })
-
-  if (result.isConfirmed) {
-    try {
-      const generated = await generateMonthlyPayments(selectedYear, selectedMonth)
-
-      if (generated > 0) {
-        Swal.fire({
-          icon: 'success',
-          title: '¡Pagos generados!',
-          text: `Se generaron ${generated} pagos pendientes`,
-          timer: 2000,
-        })
-        await refreshAll()
-      } else {
-        Swal.fire({
-          icon: 'info',
-          title: 'Ya existen',
-          text: 'Los pagos para este mes ya fueron generados',
-        })
-      }
-    } catch (_error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudieron generar los pagos',
-      })
-    }
-  }
-}
+import { getPaymentStatusInfo } from './paymentUtils'
+import { resolveMediaUrl } from '../mediaUrl'
 
 /**
  * Maneja el registro de un pago
+ * registerPayment refresca internamente el listado tras éxito.
  */
-export const handleRegisterPayment = async ({ payment, registerPayment, refreshAll }) => {
+export const handleRegisterPayment = async ({ payment, registerPayment }) => {
   const result = await Swal.fire({
     title: '¿Confirmar pago?',
     html: `
@@ -148,13 +54,8 @@ export const handleRegisterPayment = async ({ payment, registerPayment, refreshA
 export const handleViewPaymentDetails = (payment) => {
   const statusInfo = getPaymentStatusInfo(payment)
 
-  // Construir URL del voucher si existe
-  // Soportar URLs absolutas (Wasabi) y relativas (/uploads/...)
-  const voucherUrl = payment.payment_voucher_url
-    ? payment.payment_voucher_url.startsWith('http')
-      ? payment.payment_voucher_url
-      : `${API_CONFIG.BASE_URL}${payment.payment_voucher_url}`
-    : null
+  // Construir URL absoluta del voucher (proxy o Wasabi directa).
+  const voucherUrl = resolveMediaUrl(payment.payment_voucher_url)
 
   Swal.fire({
     title: 'Detalles del Pago',

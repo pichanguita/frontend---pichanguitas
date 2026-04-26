@@ -251,6 +251,13 @@ export const validateReservationData = (formData) => {
     }
   }
 
+  if (
+    (formData.paymentStatus === 'paid' || formData.paymentStatus === 'advance') &&
+    !formData.paymentMethod
+  ) {
+    errors.paymentMethod = 'Debe seleccionar un método de pago'
+  }
+
   return errors
 }
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { parseLocalDate } from '../../utils/dateFormatters'
+import { isFieldReservableOnDate } from '../../utils/fieldMaintenance'
 import {
   fetchFields,
   fetchFieldById,
@@ -16,7 +17,6 @@ import {
   updateSportTypeAPI,
   deleteSportTypeAPI,
 } from '../../services/sportTypes/sportTypesService'
-import { FIELD_APPROVAL_STATUS } from '../../constants/fieldStatus'
 import useAuthStore from '../authStore'
 import useAlertStore from '../alertStore'
 
@@ -331,15 +331,6 @@ const useFieldStore = create((set, get) => ({
   },
 
   /**
-   * Obtener canchas pendientes de aprobación
-   * @returns {Array} Canchas pendientes
-   */
-  getPendingFields: () => {
-    const { fields } = get()
-    return fields.filter((field) => field.approvalStatus === FIELD_APPROVAL_STATUS.PENDING)
-  },
-
-  /**
    * Obtener canchas por estado de aprobación
    * @param {string} status - Estado: 'pending', 'approved', 'rejected'
    * @returns {Array} Canchas filtradas
@@ -414,8 +405,12 @@ const useFieldStore = create((set, get) => ({
           }
         }
 
-        // 3. Verificar estado
-        if (field.status !== 'available') {
+        // 3. Verificar estado contra la fecha solicitada.
+        // Estados administrativos (closed/pending/etc.) excluyen siempre.
+        // Para mantenimiento, se compara la fecha pedida contra los rangos
+        // programados — una cancha "en mantenimiento HOY" sigue siendo
+        // reservable si la fecha pedida está fuera del rango.
+        if (!isFieldReservableOnDate(field, date)) {
           return false
         }
 
@@ -462,7 +457,7 @@ const useFieldStore = create((set, get) => ({
   isFieldAvailable: (fieldId, date, timeSlot, existingReservations) => {
     const field = get().getFieldById(fieldId)
 
-    if (!field || field.status !== 'available' || !field.isActive) {
+    if (!field || !field.isActive || !isFieldReservableOnDate(field, date)) {
       return false
     }
 
@@ -646,27 +641,6 @@ const useFieldStore = create((set, get) => ({
    */
   getAllSportTypes: () => {
     return get().sportTypes
-  },
-
-  /**
-   * Obtener estadísticas de canchas
-   * @returns {Object} Estadísticas
-   */
-  getFieldStats: () => {
-    const { fields } = get()
-
-    return {
-      total: fields.length,
-      active: fields.filter((f) => f.isActive).length,
-      inactive: fields.filter((f) => !f.isActive).length,
-      pending: fields.filter((f) => f.approvalStatus === FIELD_APPROVAL_STATUS.PENDING).length,
-      approved: fields.filter((f) => f.approvalStatus === 'approved').length,
-      rejected: fields.filter((f) => f.approvalStatus === 'rejected').length,
-      bySport: get().sportTypes.map((sport) => ({
-        sport: sport.name,
-        count: get().getFieldsBySport(sport.id).length,
-      })),
-    }
   },
 
   /**

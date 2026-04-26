@@ -19,7 +19,7 @@ const ReservationsTabContent = ({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-b-xl p-6"
+        className="bg-white rounded-b-xl p-4 sm:p-6"
       >
         <EmptyState type={isPast ? 'history' : 'active'} />
       </motion.div>
@@ -30,9 +30,9 @@ const ReservationsTabContent = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-b-xl p-6"
+      className="bg-white rounded-b-xl p-3 sm:p-6"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {reservations.map((reservation) => {
           // Obtener la política de cancelación de la cancha
           const field = getFieldInfo(reservation.fieldId)

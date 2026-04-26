@@ -90,39 +90,8 @@ export const getPaymentInstructions = (
   totalAmount,
   selectedField,
   _selectedTimeRanges,
-  advanceInfo = null
+  _advanceInfo = null
 ) => {
-  // Calcular mensaje de adelanto para efectivo
-  // Se muestra si hay monto de adelanto configurado (advanceInfo.perHour > 0)
-  const getAdvanceMessage = () => {
-    if (!advanceInfo || !advanceInfo.perHour || advanceInfo.perHour <= 0) {
-      return ''
-    }
-
-    const advanceTotal = advanceInfo.perHour * advanceInfo.hours
-    if (advanceTotal <= 0) return ''
-
-    // Mensaje unificado: Debes pagar un adelanto coordinando por WhatsApp
-    return `
-      <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 mt-4">
-        <h4 class="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-          📞 Adelanto requerido
-        </h4>
-        <p class="text-sm text-blue-700 mb-2">
-          Para confirmar tu reserva, debes abonar un adelanto de
-          <strong class="text-lg">S/ ${advanceTotal.toFixed(2)}</strong>
-          <span class="text-xs">(S/ ${advanceInfo.perHour.toFixed(2)} x ${advanceInfo.hours} hora${advanceInfo.hours > 1 ? 's' : ''})</span>
-        </p>
-        <p class="text-sm text-blue-600">
-          Coordina el pago con el <strong>administrador por WhatsApp</strong>.
-        </p>
-        <p class="text-xs text-blue-500 mt-2">
-          💡 El saldo restante de S/ ${(totalAmount - advanceTotal).toFixed(2)} lo pagas al llegar a la cancha.
-        </p>
-      </div>
-    `
-  }
-
   const instructions = {
     efectivo: {
       icon: 'question',
@@ -142,7 +111,6 @@ export const getPaymentInstructions = (
               <li>• Lleve el monto exacto si es posible</li>
             </ul>
           </div>
-          ${getAdvanceMessage()}
           <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
             <p class="text-sm text-red-700">
               <strong>Advertencia:</strong> Si no se presenta o cancela muy tarde, podría ser penalizado para futuras reservas.

@@ -9,6 +9,32 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { FIELD_CATEGORY, FIELD_CATEGORY_HEX, FIELD_CATEGORY_LABELS } from '@/constants'
+
+// Color de "Total Canchas" (identidad de marca, no de estado) y "Reservas".
+const TOTAL_FIELDS_COLOR = '#3b82f6'
+const RESERVATIONS_COLOR = '#f59e0b'
+
+// Series del BarChart — un objeto por barra, coherente con las keys de barChartData.
+const BAR_SERIES = [
+  { dataKey: 'canchas', name: 'Total', fill: TOTAL_FIELDS_COLOR },
+  {
+    dataKey: 'activas',
+    name: FIELD_CATEGORY_LABELS[FIELD_CATEGORY.ACTIVE],
+    fill: FIELD_CATEGORY_HEX[FIELD_CATEGORY.ACTIVE],
+  },
+  {
+    dataKey: 'rechazadas',
+    name: FIELD_CATEGORY_LABELS[FIELD_CATEGORY.REJECTED],
+    fill: FIELD_CATEGORY_HEX[FIELD_CATEGORY.REJECTED],
+  },
+  { dataKey: 'reservas', name: 'Reservas', fill: RESERVATIONS_COLOR },
+]
+
+const renderBars = () =>
+  BAR_SERIES.map((serie) => (
+    <Bar key={serie.dataKey} dataKey={serie.dataKey} fill={serie.fill} name={serie.name} />
+  ))
 
 const BarChartCard = ({ data }) => {
   return (
@@ -23,9 +49,7 @@ const BarChartCard = ({ data }) => {
           <YAxis tick={{ fontSize: 10 }} />
           <RechartsTooltip />
           <Legend wrapperStyle={{ fontSize: '12px' }} />
-          <Bar dataKey="canchas" fill="#3b82f6" name="Total" />
-          <Bar dataKey="activas" fill="#22c55e" name="Activas" />
-          <Bar dataKey="reservas" fill="#f59e0b" name="Reservas" />
+          {renderBars()}
         </BarChart>
       </ResponsiveContainer>
       <ResponsiveContainer width="100%" height={380} className="hidden sm:block">
@@ -35,9 +59,7 @@ const BarChartCard = ({ data }) => {
           <YAxis />
           <RechartsTooltip />
           <Legend />
-          <Bar dataKey="canchas" fill="#3b82f6" name="Total" />
-          <Bar dataKey="activas" fill="#22c55e" name="Activas" />
-          <Bar dataKey="reservas" fill="#f59e0b" name="Reservas" />
+          {renderBars()}
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -198,7 +198,10 @@ const FieldSelectionPanel = ({
           <div className="text-center py-16 text-secondary-400">
             <MapPin className="w-16 h-16 mb-4 opacity-30 mx-auto" />
             <p className="text-lg font-medium">No hay canchas disponibles</p>
-            <p className="text-sm mt-2">Intenta cambiar los filtros de búsqueda</p>
+            <p className="text-sm mt-2">
+              Puede deberse a horarios ocupados o a canchas cerradas en la fecha elegida.
+              Prueba con otra fecha, horario o filtros.
+            </p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

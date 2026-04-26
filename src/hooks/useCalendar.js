@@ -68,12 +68,12 @@ export const useCalendar = (fieldFilter = 'all', filteredFieldIds = null) => {
 
   // Filtrar reservas - usa filteredFieldIds si está disponible (incluye filtros geográficos)
   const filteredReservations = useMemo(() => {
-    // Si hay IDs filtrados específicos, usar esos (convertir a número para comparación segura)
-    if (filteredFieldIds && filteredFieldIds.length > 0) {
-      return existingReservations.filter((r) => {
-        const reservationFieldId = parseInt(r.fieldId, 10)
-        return filteredFieldIds.some((id) => parseInt(id, 10) === reservationFieldId)
-      })
+    // Si se pasó un array (incluso vacío), respetar el filtro: array vacío = cero reservas.
+    // Solo cuando filteredFieldIds es null/undefined se aplica el fallback por fieldFilter.
+    if (Array.isArray(filteredFieldIds)) {
+      if (filteredFieldIds.length === 0) return []
+      const allowedIds = new Set(filteredFieldIds.map((id) => parseInt(id, 10)))
+      return existingReservations.filter((r) => allowedIds.has(parseInt(r.fieldId, 10)))
     }
     // Fallback al comportamiento anterior (solo fieldFilter)
     if (fieldFilter === 'all') return existingReservations

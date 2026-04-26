@@ -7,17 +7,27 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import { COLORS } from '@/utils/superadmin/dashboardHelpers'
+import { FIELD_CATEGORY_HEX } from '@/constants'
+
+// Color de fallback para cualquier segmento que no tenga categoría mapeada
+const FALLBACK_SLICE_COLOR = '#8b5cf6'
+
+const getSliceColor = (entry) =>
+  (entry.category && FIELD_CATEGORY_HEX[entry.category]) || FALLBACK_SLICE_COLOR
 
 const PieChartCard = ({ data }) => {
-  // Filtrar solo datos con valor > 0
+  // Filtrar solo datos con valor > 0 para no saturar el gráfico
   const filteredData = data.filter((item) => item.value > 0)
 
-  // Custom label que solo muestra si hay espacio
   const renderLabel = ({ _name, percent }) => {
-    if (percent < 0.05) return null // No mostrar si es menos del 5%
+    if (percent < 0.05) return null
     return `${(percent * 100).toFixed(0)}%`
   }
+
+  const renderCells = () =>
+    filteredData.map((entry) => (
+      <Cell key={`cell-${entry.category ?? entry.name}`} fill={getSliceColor(entry)} />
+    ))
 
   return (
     <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-5 md:p-6">
@@ -37,9 +47,7 @@ const PieChartCard = ({ data }) => {
             dataKey="value"
             style={{ fontSize: '10px' }}
           >
-            {filteredData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
+            {renderCells()}
           </Pie>
           <RechartsTooltip formatter={(value, name) => [`${value} canchas`, name]} />
           <Legend />
@@ -57,9 +65,7 @@ const PieChartCard = ({ data }) => {
             fill="#8884d8"
             dataKey="value"
           >
-            {filteredData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
+            {renderCells()}
           </Pie>
           <RechartsTooltip formatter={(value, name) => [`${value} canchas`, name]} />
           <Legend />

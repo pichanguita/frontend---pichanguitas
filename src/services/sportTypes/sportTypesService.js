@@ -107,6 +107,32 @@ export const updateSportTypeAPI = async (sportTypeId, updates, token) => {
 }
 
 /**
+ * Obtener la cantidad de canchas asociadas a un tipo de deporte.
+ * Se usa para mostrar un mensaje informativo previo a la eliminación.
+ * @param {string|number} sportTypeId - ID del tipo de deporte
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<number>} Cantidad de canchas asociadas
+ */
+export const fetchSportTypeFieldsCount = async (sportTypeId, token) => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.GET_FIELDS_COUNT(sportTypeId), {
+      method: 'GET',
+      headers: getAuthHeaders(token),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al obtener conteo de canchas')
+    }
+
+    return data.data?.count ?? 0
+  } catch (error) {
+    throw new Error(error.message || 'Error al obtener conteo de canchas')
+  }
+}
+
+/**
  * Eliminar un tipo de deporte (soft delete) en el backend
  * @param {string} sportTypeId - ID del tipo de deporte
  * @param {string} token - Token de autenticación

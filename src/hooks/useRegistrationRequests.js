@@ -15,107 +15,66 @@ import {
 import { API_CONFIG } from '../config/api.config'
 
 /**
- * Transforma los datos del backend al formato del frontend
+ * Adapta los datos que devuelve el backend (nuevo esquema relacional) al
+ * formato que consumen los componentes de SA.
  */
 const transformBackendToFrontend = (backendRequest) => {
-  const docs = backendRequest.documents || {}
-  const API_BASE_URL = API_CONFIG.BASE_URL
+  const files = Array.isArray(backendRequest.files) ? backendRequest.files : []
+  const sports = Array.isArray(backendRequest.sports) ? backendRequest.sports : []
 
-  // Construir URLs completas para los archivos subidos
-  const uploadedFiles = docs.uploadedFiles || []
-  const documentsMetadata = docs.documentsMetadata || []
-  const photosMetadata = docs.photosMetadata || []
+  const mapFile = (file) => ({
+    id: file.id,
+    fileId: file.id,
+    name: file.originalName || 'archivo',
+    size: file.sizeBytes || 0,
+    type: file.mimeType || 'application/octet-stream',
+    kind: file.kind,
+    // URL de descarga autenticada (stream con Authorization: Bearer ...)
+    downloadUrl: API_CONFIG.REGISTRATION_REQUESTS.DOWNLOAD_FILE(
+      backendRequest.id,
+      file.id
+    ),
+  })
 
-  // Función helper para encontrar metadata por nombre de archivo
-  const findMetadata = (file, metadataArray) => {
-    return (
-      metadataArray.find(
-        (meta) =>
-          meta.name === file.originalname ||
-          meta.name.includes(file.originalname?.split('.')[0] || '')
-      ) || {}
-    )
-  }
-
-  // Helper para construir URL completa (soporta Wasabi y rutas locales)
-  const buildFileUrl = (filePath) => {
-    if (!filePath) return ''
-    // Si ya es URL absoluta (Wasabi u otra), retornar directamente
-    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return filePath
-    }
-    // Si es ruta relativa, agregar BASE_URL
-    if (filePath.startsWith('/')) {
-      return `${API_BASE_URL}${filePath}`
-    }
-    return `${API_BASE_URL}/${filePath}`
-  }
-
-  // Separar documentos (PDFs, etc.) de fotos (imagenes)
-  const documentsWithUrls = uploadedFiles
-    .filter((file) => file.mimetype?.startsWith('application/') || file.mimetype?.includes('pdf'))
-    .map((file) => {
-      const metadata = findMetadata(file, documentsMetadata)
-      return {
-        id: metadata.id || Date.now() + Math.random(),
-        name: file.originalname || file.filename || 'Documento',
-        size: file.size || metadata.size || 0,
-        type: file.mimetype || metadata.type || 'application/pdf',
-        data: buildFileUrl(file.path),
-      }
-    })
-
-  const photosWithUrls = uploadedFiles
-    .filter((file) => file.mimetype?.startsWith('image/'))
-    .map((file) => {
-      const metadata = findMetadata(file, photosMetadata)
-      return {
-        id: metadata.id || Date.now() + Math.random(),
-        name: file.originalname || file.filename || 'Foto',
-        size: file.size || metadata.size || 0,
-        type: file.mimetype || metadata.type || 'image/jpeg',
-        data: buildFileUrl(file.path),
-      }
-    })
+  const documents = files.filter((f) => f.kind === 'document').map(mapFile)
+  const photos = files.filter((f) => f.kind === 'photo').map(mapFile)
 
   return {
     id: backendRequest.id.toString(),
-    // Datos personales
+
     firstName: backendRequest.name?.split(' ')[0] || '',
     lastName: backendRequest.name?.split(' ').slice(1).join(' ') || '',
     dni: backendRequest.dni || '',
     email: backendRequest.email || '',
     phone: backendRequest.phone || '',
 
-    // Datos del negocio (usando field_name como businessName)
     businessName: backendRequest.field_name || '',
     businessAddress: backendRequest.address || '',
-    businessRuc: docs.businessRuc || '',
-    businessPhone: docs.businessPhone || '',
-    businessReference: docs.businessReference || '',
+    businessRuc: backendRequest.business_ruc || '',
+    businessPhone: backendRequest.business_phone || '',
+    businessReference: backendRequest.business_reference || '',
 
-    // Ubicación
     department: backendRequest.department || '',
     province: backendRequest.province || '',
     district: backendRequest.district || '',
-    addressReferences: docs.addressReferences || '',
-    businessCoordinates: docs.businessCoordinates || null,
+    addressReferences: backendRequest.address_references || '',
+    businessCoordinates:
+      backendRequest.business_latitude != null && backendRequest.business_longitude != null
+        ? {
+            latitude: Number(backendRequest.business_latitude),
+            longitude: Number(backendRequest.business_longitude),
+          }
+        : null,
 
-    // Información adicional
-    sportTypes: docs.sportTypes || [],
-    experience: docs.experience || '',
-    reasonToJoin: docs.reasonToJoin || '',
+    sportTypes: sports.map((s) => s.name),
+    experience: backendRequest.experience || '',
+    reasonToJoin: backendRequest.reason_to_join || '',
 
-    // Credenciales
-    username: docs.credentials?.username || '',
-    password: docs.credentials?.password || '',
+    username: backendRequest.credentials_username || '',
 
-    // Documentos y fotos con URLs completas
-    documents: documentsWithUrls,
-    photos: photosWithUrls,
-    uploadedFiles: docs.uploadedFiles || [],
+    documents,
+    photos,
 
-    // Estado
     status: backendRequest.status || 'pending',
     requestDate: backendRequest.date_time_registration || new Date().toISOString(),
     reviewDate: backendRequest.reviewed_at || null,
@@ -142,12 +101,10 @@ export const useRegistrationRequests = () => {
     rejected: 0,
   })
 
-  // Cargar solicitudes desde el backend
   useEffect(() => {
     loadRequests()
   }, [])
 
-  // Filtrar solicitudes
   useEffect(() => {
     const filtered = filterRequests(requests, filterStatus, searchTerm)
     setFilteredRequests(filtered)
@@ -161,7 +118,6 @@ export const useRegistrationRequests = () => {
 
       setRequests(transformedRequests)
 
-      // Cargar estadísticas
       try {
         const statsData = await fetchRegistrationRequestStatsAPI(token)
         setStats({
@@ -172,7 +128,6 @@ export const useRegistrationRequests = () => {
         })
       } catch (error) {
         console.error('Error al cargar estadísticas:', error)
-        // Calcular stats localmente si falla la API
         setStats(calculateStats(transformedRequests))
       }
     } catch (error) {
@@ -214,10 +169,7 @@ export const useRegistrationRequests = () => {
 
     if (result.isConfirmed) {
       try {
-        // Aprobar en el backend (esto ahora crea automáticamente el usuario y la cancha)
-        const approvalResult = await approveRegistrationRequestAPI(request.id, token)
-
-        // Recargar solicitudes para reflejar el cambio de estado
+        await approveRegistrationRequestAPI(request.id, token)
         await loadRequests()
 
         Swal.fire({
@@ -273,10 +225,7 @@ export const useRegistrationRequests = () => {
 
     if (result.isConfirmed) {
       try {
-        // Rechazar en el backend
         await rejectRegistrationRequestAPI(request.id, result.value, token)
-
-        // Recargar solicitudes
         await loadRequests()
 
         Swal.fire({
@@ -316,7 +265,6 @@ export const useRegistrationRequests = () => {
   }
 
   return {
-    // Estado
     requests,
     filteredRequests,
     selectedRequest,
@@ -328,7 +276,6 @@ export const useRegistrationRequests = () => {
     stats,
     loading,
 
-    // Setters
     setSearchTerm,
     setFilterStatus,
     setShowDetails,
@@ -336,7 +283,6 @@ export const useRegistrationRequests = () => {
     setSelectedDocuments,
     setSelectedRequest,
 
-    // Acciones
     handleApprove,
     handleReject,
     handleViewDetails,

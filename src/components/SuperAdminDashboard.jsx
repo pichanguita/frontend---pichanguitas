@@ -6,7 +6,7 @@ import usePaymentStore from '../store/paymentStore'
 import { exportIncomeToExcel, exportReservationsToExcel } from '../utils/reportGenerator'
 import * as XLSX from 'xlsx'
 import Swal from 'sweetalert2'
-import { USER_ROLES, FIELD_STATUS, FIELD_APPROVAL_STATUS } from '@/constants'
+import { USER_ROLES, FIELD_CATEGORY, FIELD_CATEGORY_LABELS, getFieldCategory } from '@/constants'
 import {
   getDistrictStats,
   getTrendData,
@@ -25,6 +25,15 @@ import MapView from './superadmin/dashboard/views/MapView'
 import ChartsView from './superadmin/dashboard/views/ChartsView'
 import TableView from './superadmin/dashboard/views/TableView'
 import ReportsView from './superadmin/dashboard/views/ReportsView'
+
+// Orden fijo de categorías en el PieChart (consistencia visual entre renders)
+const PIE_CATEGORIES_ORDER = [
+  FIELD_CATEGORY.ACTIVE,
+  FIELD_CATEGORY.MAINTENANCE,
+  FIELD_CATEGORY.CLOSED,
+  FIELD_CATEGORY.PENDING,
+  FIELD_CATEGORY.REJECTED,
+]
 
 const SuperAdminDashboard = () => {
   const { fields } = useFieldStore()
@@ -85,23 +94,20 @@ const SuperAdminDashboard = () => {
         distrito: stat.name,
         canchas: stat.totalFields,
         activas: stat.activeFields,
+        rechazadas: stat.rejectedFields,
         reservas: stat.totalReservations,
       })),
     [districtStats]
   )
 
   const pieChartData = useMemo(() => {
-    if (!Array.isArray(fields)) return []
-    return [
-      { name: 'Activas', value: fields.filter((f) => f.status === FIELD_STATUS.AVAILABLE).length },
-      {
-        name: 'Mantenimiento',
-        value: fields.filter((f) => f.status === FIELD_STATUS.MAINTENANCE).length,
-      },
-      { name: 'Pendientes', value: fields.filter((f) => f.approvalStatus === FIELD_APPROVAL_STATUS.PENDING).length },
-      { name: 'Cerradas', value: fields.filter((f) => f.status === FIELD_STATUS.CLOSED).length },
-    ]
-  }, [fields])
+    const counts = kpis.categoryCounts || {}
+    return PIE_CATEGORIES_ORDER.map((category) => ({
+      category,
+      name: FIELD_CATEGORY_LABELS[category],
+      value: counts[category] || 0,
+    }))
+  }, [kpis.categoryCounts])
 
   const handleDistrictClick = (district) => {
     setSelectedDistrict(district)
@@ -173,16 +179,7 @@ const SuperAdminDashboard = () => {
           Dirección: field.address,
           Distrito: field.distrito,
           Departamento: field.departamento,
-          Estado:
-            field.approvalStatus === FIELD_APPROVAL_STATUS.PENDING
-              ? 'Pendiente Aprobación'
-              : field.approvalStatus === FIELD_APPROVAL_STATUS.REJECTED
-                ? 'Rechazada'
-                : field.status === FIELD_STATUS.AVAILABLE
-                  ? 'Disponible'
-                  : field.status === FIELD_STATUS.MAINTENANCE
-                    ? 'Mantenimiento'
-                    : 'Cerrada',
+          Estado: FIELD_CATEGORY_LABELS[getFieldCategory(field)],
           Deportes: field.sportTypes?.join(', ') || 'N/A',
           'Precio/Hora (S/)': field.pricePerHour,
           'Total Reservas': fieldReservations.length,
@@ -198,11 +195,18 @@ const SuperAdminDashboard = () => {
       XLSX.utils.book_append_sheet(wb, ws, 'Canchas')
 
       // Agregar hoja de resumen
+      const fieldCategoryCounts = fields.reduce((acc, field) => {
+        const category = getFieldCategory(field)
+        acc[category] = (acc[category] || 0) + 1
+        return acc
+      }, {})
+
       const summaryData = [
         {
           Período: getDateRangeText(dateRange),
           'Total Canchas': fields.length,
-          'Canchas Activas': fields.filter((f) => f.status === FIELD_STATUS.AVAILABLE).length,
+          'Canchas Activas': fieldCategoryCounts[FIELD_CATEGORY.ACTIVE] || 0,
+          'Canchas Rechazadas': fieldCategoryCounts[FIELD_CATEGORY.REJECTED] || 0,
           'Total Reservas': filteredReservations.length,
           'Ingresos Totales (S/)': fieldsData
             .reduce((sum, f) => sum + parseFloat(f['Ingresos (S/)']), 0)
@@ -360,6 +364,8 @@ const SuperAdminDashboard = () => {
           'Período del Reporte': getDateRangeText(dateRange),
           'Total Canchas': kpis.totalFields,
           'Canchas Activas': kpis.activeFields,
+          'Canchas Pendientes': kpis.pendingFields,
+          'Canchas Rechazadas': kpis.rejectedFields,
           'Total Reservas (Período)': filteredReservations.length,
           'Reservas Hoy': kpis.todayReservations,
           'Ingresos (Período) (S/)': filteredTotalRevenue.toFixed(2),
@@ -426,6 +432,8 @@ const SuperAdminDashboard = () => {
       <StatsCards
         totalFields={kpis.totalFields}
         activeFields={kpis.activeFields}
+        pendingFields={kpis.pendingFields}
+        rejectedFields={kpis.rejectedFields}
         totalReservations={kpis.totalReservations}
         todayReservations={kpis.todayReservations}
         totalRevenue={kpis.totalRevenue}

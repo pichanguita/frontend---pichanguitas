@@ -78,8 +78,9 @@ const PaymentFlow = ({ onBack, onComplete }) => {
         />
 
         {/* 💰 Información de Adelanto - Para pagos NO en efectivo */}
-        {/* Condición: Hay adelanto configurado (perHour > 0) + NO es efectivo + NO es gratis */}
-        {advanceInfo?.perHour > 0 &&
+        {/* Condición: La cancha REQUIERE adelanto + hay monto configurado + NO es efectivo + NO es gratis */}
+        {advanceInfo?.required &&
+          advanceInfo?.perHour > 0 &&
           !isFreeReservation &&
           !isCashPayment && (
             <div className="mt-4 sm:mt-6 bg-amber-50 border border-amber-300 rounded-xl p-4 sm:p-5">
@@ -108,8 +109,9 @@ const PaymentFlow = ({ onBack, onComplete }) => {
           )}
 
         {/* 💬 Mensaje para EFECTIVO - Coordinar adelanto por WhatsApp */}
-        {/* Condición: Hay adelanto configurado (perHour > 0) + ES efectivo + NO es gratis */}
-        {advanceInfo?.perHour > 0 &&
+        {/* Condición: La cancha REQUIERE adelanto + hay monto configurado + ES efectivo + NO es gratis */}
+        {advanceInfo?.required &&
+          advanceInfo?.perHour > 0 &&
           isCashPayment &&
           !isFreeReservation &&
           pricing?.totalAmount > 0 && (

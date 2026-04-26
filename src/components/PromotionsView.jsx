@@ -20,7 +20,7 @@ import { fetchMyFreeHours } from '../services/customers/customersService'
 import Swal from 'sweetalert2'
 
 const PromotionsView = ({ onNavigateToFields }) => {
-  const { fields } = useBookingStore()
+  const { fields, loadMyFreeHours } = useBookingStore()
   const [promotionsData, setPromotionsData] = useState(null)
   const [freeHoursData, setFreeHoursData] = useState(null)
   const [history, setHistory] = useState([])
@@ -55,13 +55,20 @@ const PromotionsView = ({ onNavigateToFields }) => {
     loadData()
   }, [])
 
-  // Manejar canje de promoción
+  // Manejar canje de promoción.
+  // Bloquea la UI hasta que termine la recarga, evitando race conditions
+  // (doble canje del mismo botón antes de que se reflejen los cambios).
   const handleRedeemPromotion = async () => {
-    if (!selectedPromotion) return
+    if (!selectedPromotion || isClaiming) return
 
     setIsClaiming(true)
     try {
       const result = await redeemPromotion(selectedPromotion.id)
+
+      // Recargar datos locales y store global ANTES de cerrar el modal
+      // y mostrar éxito. Así el progreso/canRedeem ya están actualizados
+      // cuando el cliente pueda interactuar de nuevo.
+      await Promise.all([loadData(), loadMyFreeHours()])
 
       setShowClaimModal(false)
       setSelectedPromotion(null)
@@ -72,9 +79,6 @@ const PromotionsView = ({ onNavigateToFields }) => {
         text: result.message || `Has ganado ${result.hoursEarned} hora(s) gratis`,
         confirmButtonColor: '#22c55e',
       })
-
-      // Recargar datos
-      loadData()
     } catch (err) {
       console.error('Error al canjear promoción:', err)
       Swal.fire({
@@ -189,16 +193,27 @@ const PromotionsView = ({ onNavigateToFields }) => {
             </div>
 
             {/* Info de uso */}
-            <div className="text-center md:text-right bg-white/10 rounded-xl p-4">
+            <div className="text-center md:text-right bg-white/10 rounded-xl p-4 flex flex-col gap-3">
               {availableFreeHours > 0 ? (
                 <>
-                  <div className="flex items-center gap-2 justify-center md:justify-end mb-1">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="font-semibold">Listo para usar</span>
+                  <div>
+                    <div className="flex items-center gap-2 justify-center md:justify-end mb-1">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-semibold">Listas para usar</span>
+                    </div>
+                    <p className="text-sm opacity-90">
+                      Aplícalas en tu próxima reserva al confirmar el precio
+                    </p>
                   </div>
-                  <p className="text-sm opacity-90">
-                    Se aplicarán automáticamente en tu próxima reserva
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToFields?.({ useFreeHours: true })}
+                    className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-semibold rounded-lg px-4 py-2 hover:bg-emerald-50 transition-colors shadow-sm"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Usar mis horas gratis ahora</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </>
               ) : (
                 <>
@@ -288,7 +303,8 @@ const PromotionsView = ({ onNavigateToFields }) => {
                       {promo.canRedeem ? (
                         <button
                           onClick={() => openRedeemModal(promo)}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm transition-colors"
+                          disabled={isClaiming}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm transition-colors"
                         >
                           Canjear
                         </button>
@@ -522,6 +538,7 @@ const PromotionsView = ({ onNavigateToFields }) => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             onClick={() => {
+              if (isClaiming) return
               setShowClaimModal(false)
               setSelectedPromotion(null)
             }}
@@ -563,7 +580,8 @@ const PromotionsView = ({ onNavigateToFields }) => {
                       setShowClaimModal(false)
                       setSelectedPromotion(null)
                     }}
-                    className="flex-1 px-4 py-3 border-2 border-green-500 text-green-600 rounded-lg font-semibold hover:bg-green-50 transition-colors"
+                    disabled={isClaiming}
+                    className="flex-1 px-4 py-3 border-2 border-green-500 text-green-600 rounded-lg font-semibold hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Cancelar
                   </button>

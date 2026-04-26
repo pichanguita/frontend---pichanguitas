@@ -456,56 +456,6 @@ export const cancelReservationAPI = async (reservationId, cancellation_reason, t
 }
 
 /**
- * Completar una reserva en el backend
- * @param {string} reservationId - ID de la reserva
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Reserva completada
- */
-export const completeReservationAPI = async (reservationId, token) => {
-  try {
-    const response = await fetch(API_CONFIG.RESERVATIONS.COMPLETE(reservationId), {
-      method: 'PUT',
-      headers: getAuthHeaders(token),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al completar reserva')
-    }
-
-    return data.data
-  } catch (error) {
-    throw new Error(error.message || 'Error al completar reserva')
-  }
-}
-
-/**
- * Marcar una reserva como no show en el backend
- * @param {string} reservationId - ID de la reserva
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Reserva marcada como no show
- */
-export const markNoShowAPI = async (reservationId, token) => {
-  try {
-    const response = await fetch(API_CONFIG.RESERVATIONS.NO_SHOW(reservationId), {
-      method: 'PUT',
-      headers: getAuthHeaders(token),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Error al marcar no show')
-    }
-
-    return data.data
-  } catch (error) {
-    throw new Error(error.message || 'Error al marcar no show')
-  }
-}
-
-/**
  * Verificar disponibilidad de una cancha
  * @param {Object} params - Parámetros { field_id, date, time_slots }
  * @returns {Promise<Object>} { available, conflicting_slots }

@@ -124,7 +124,6 @@ const PaymentControlModule = () => {
           handleRegisterPayment({
             payment,
             registerPayment,
-            refreshAll,
           })
         }
         onConfirmPayment={handleConfirmPayment}

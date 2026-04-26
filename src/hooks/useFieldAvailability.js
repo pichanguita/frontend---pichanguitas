@@ -25,6 +25,7 @@ const useFieldAvailability = ({
   selectedSportTypes = [],
 }) => {
   const [publicOccupiedSlots, setPublicOccupiedSlots] = useState({})
+  const [publicDaySchedules, setPublicDaySchedules] = useState({})
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false)
   const fetchedFieldsRef = useRef(new Set())
 
@@ -58,10 +59,15 @@ const useFieldAvailability = ({
         fetchedFieldsRef.current.add(cacheKey)
         const availability = await fetchPublicFieldAvailability(fieldId, selectedDate)
         const occupiedSlots = availability.occupiedSlots || []
+        const daySchedule = availability.daySchedule || null
 
         setPublicOccupiedSlots((prev) => ({
           ...prev,
           [cacheKey]: occupiedSlots,
+        }))
+        setPublicDaySchedules((prev) => ({
+          ...prev,
+          [cacheKey]: daySchedule,
         }))
       } catch (_error) {
         // Error silencioso - los slots se mostrarán como disponibles
@@ -92,7 +98,52 @@ const useFieldAvailability = ({
   useEffect(() => {
     fetchedFieldsRef.current.clear()
     setPublicOccupiedSlots({})
+    setPublicDaySchedules({})
   }, [selectedDate])
+
+  /**
+   * Devuelve el día de la semana en inglés (monday..sunday) para una fecha YYYY-MM-DD.
+   */
+  const getDayOfWeekKey = useCallback((dateStr) => {
+    if (!dateStr) return null
+    return new Date(dateStr + 'T12:00:00')
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .toLowerCase()
+  }, [])
+
+  /**
+   * Enriquecer un field con el schedule del día obtenido del endpoint público.
+   * Si el field ya trae schedule (ej. obtenido vía getFieldById autenticado), lo respeta.
+   * @param {Object} field
+   * @returns {Object} field con `schedule` poblado para el día si hay info
+   */
+  const getEffectiveField = useCallback(
+    (field) => {
+      if (!field) return field
+      if (field.schedule) return field
+      const cacheKey = `${field.id}-${selectedDate}`
+      const daySchedule = publicDaySchedules[cacheKey]
+      if (!daySchedule) return field
+      const dayKey = daySchedule.dayOfWeek || getDayOfWeekKey(selectedDate)
+      if (!dayKey) return field
+      return {
+        ...field,
+        schedule: { [dayKey]: daySchedule },
+      }
+    },
+    [publicDaySchedules, selectedDate, getDayOfWeekKey]
+  )
+
+  /**
+   * Obtiene el schedule del día para una cancha específica (si está disponible en cache).
+   */
+  const getDayScheduleForField = useCallback(
+    (fieldId) => {
+      const cacheKey = `${fieldId}-${selectedDate}`
+      return publicDaySchedules[cacheKey] || null
+    },
+    [publicDaySchedules, selectedDate]
+  )
 
   /**
    * Combinar reservas existentes (autenticados) con slots públicos (no autenticados)
@@ -138,9 +189,10 @@ const useFieldAvailability = ({
     if (!canSearchFields) return []
 
     return availableFields.filter((field) => {
+      const effectiveField = getEffectiveField(field)
       const effectiveReservations = getEffectiveReservations(field.id)
       return shouldShowField(
-        field,
+        effectiveField,
         startTime,
         endTime,
         selectedDate,
@@ -156,6 +208,7 @@ const useFieldAvailability = ({
     selectedDate,
     timeRanges,
     getEffectiveReservations,
+    getEffectiveField,
   ])
 
   /**
@@ -163,16 +216,17 @@ const useFieldAvailability = ({
    */
   const checkTimeSlotAvailability = useCallback(
     (field, timeRangeId) => {
+      const effectiveField = getEffectiveField(field)
       const effectiveReservations = getEffectiveReservations(field.id)
       return isTimeSlotAvailable(
-        field,
+        effectiveField,
         timeRangeId,
         selectedDate,
         timeRanges,
         effectiveReservations
       )
     },
-    [selectedDate, timeRanges, getEffectiveReservations]
+    [selectedDate, timeRanges, getEffectiveReservations, getEffectiveField]
   )
 
   /**
@@ -180,10 +234,16 @@ const useFieldAvailability = ({
    */
   const getFieldAllAvailable = useCallback(
     (field) => {
+      const effectiveField = getEffectiveField(field)
       const effectiveReservations = getEffectiveReservations(field.id)
-      return getFieldAllAvailableHours(field, selectedDate, timeRanges, effectiveReservations)
+      return getFieldAllAvailableHours(
+        effectiveField,
+        selectedDate,
+        timeRanges,
+        effectiveReservations
+      )
     },
-    [selectedDate, timeRanges, getEffectiveReservations]
+    [selectedDate, timeRanges, getEffectiveReservations, getEffectiveField]
   )
 
   /**
@@ -191,9 +251,10 @@ const useFieldAvailability = ({
    */
   const getFieldAvailableInRange = useCallback(
     (field) => {
+      const effectiveField = getEffectiveField(field)
       const effectiveReservations = getEffectiveReservations(field.id)
       return getFieldAvailableHoursInRange(
-        field,
+        effectiveField,
         startTime,
         endTime,
         selectedDate,
@@ -201,7 +262,7 @@ const useFieldAvailability = ({
         effectiveReservations
       )
     },
-    [startTime, endTime, selectedDate, timeRanges, getEffectiveReservations]
+    [startTime, endTime, selectedDate, timeRanges, getEffectiveReservations, getEffectiveField]
   )
 
   return {
@@ -214,6 +275,7 @@ const useFieldAvailability = ({
     getFieldAvailableInRange,
     calculateSelectedTimeRanges: () => selectedTimeRangesIds,
     fetchFieldAvailability,
+    getDayScheduleForField,
   }
 }
 
