@@ -12,7 +12,6 @@ import { FIELD_STATUS, FIELD_APPROVAL_STATUS, DEFAULT_VALUES } from '../constant
  * @param {string} filters.filterSport - Filtro por deporte
  * @param {string} filters.filterStatus - Filtro por estado
  * @param {string} filters.filterOwner - Filtro por propietario (solo superadmin)
- * @param {Function} getFieldOwner - Función para obtener el propietario de una cancha
  * @param {boolean} isSuperAdmin - Si el usuario es super admin
  *
  * @returns {Array} Array de canchas filtradas
@@ -20,7 +19,6 @@ import { FIELD_STATUS, FIELD_APPROVAL_STATUS, DEFAULT_VALUES } from '../constant
 export const useFieldFilters = (
   fields,
   filters = {},
-  getFieldOwner = null,
   isSuperAdmin = false
 ) => {
   const {
@@ -83,14 +81,15 @@ export const useFieldFilters = (
       }
 
       // Filtro por propietario (solo para superadmin)
-      if (isSuperAdmin && filterOwner !== DEFAULT_VALUES.ALL && getFieldOwner) {
-        const fieldOwner = getFieldOwner(field.id)
-        if (!fieldOwner || fieldOwner.id !== filterOwner) {
+      // Fuente de verdad: field.adminId. El <select> emite el id como string,
+      // mientras que adminId viene como número desde el backend → comparar como string.
+      if (isSuperAdmin && filterOwner !== DEFAULT_VALUES.ALL) {
+        if (String(field.adminId) !== String(filterOwner)) {
           return false
         }
       }
 
       return true
     })
-  }, [fields, searchTerm, filterSport, filterStatus, filterOwner, getFieldOwner, isSuperAdmin])
+  }, [fields, searchTerm, filterSport, filterStatus, filterOwner, isSuperAdmin])
 }

@@ -331,9 +331,21 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
         totalAmount: formData.totalAmount,
         paymentStatus: formData.paymentStatus,
         paymentMethod: formData.paymentMethod || null,
+        // Si el admin marca el pago como completo, advance = total y remaining = 0.
+        // Si es 'advance', se usa el monto ingresado.
+        // En cualquier otro caso (pendiente), advance = 0 y remaining = total.
         advanceAmount:
-          formData.paymentStatus === 'advance' ? parseFloat(formData.advanceAmount) : 0,
-        remainingAmount: formData.paymentStatus === 'advance' ? formData.remainingAmount : 0,
+          formData.paymentStatus === 'paid'
+            ? parseFloat(formData.totalAmount) || 0
+            : formData.paymentStatus === 'advance'
+              ? parseFloat(formData.advanceAmount) || 0
+              : 0,
+        remainingAmount:
+          formData.paymentStatus === 'paid'
+            ? 0
+            : formData.paymentStatus === 'advance'
+              ? formData.remainingAmount
+              : parseFloat(formData.totalAmount) || 0,
         registeredBy: {
           id: user?.id,
           name: user?.name,
@@ -347,15 +359,9 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
 
       await onSave(clientRegistration)
 
-      Swal.fire({
-        icon: 'success',
-        title: 'Cliente Registrado',
-        text: `${formData.clientName} ha sido registrado exitosamente`,
-        timer: 2000,
-        showConfirmButton: false,
-        showCloseButton: true,
-        allowEscapeKey: true,
-      })
+      // El feedback de éxito lo controla el caller (ej. "¡Reserva Creada!" en
+      // el modal de Nueva Reserva). Este hook ya no muestra toast genérico
+      // porque generaba mensajes duplicados.
 
       setFormData(INITIAL_FORM_DATA)
       setClientSelectionMode('new')

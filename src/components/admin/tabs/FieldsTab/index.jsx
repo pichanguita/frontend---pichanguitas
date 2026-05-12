@@ -76,7 +76,6 @@ export const FieldsTab = ({
       filterStatus,
       filterOwner,
     },
-    getFieldOwner,
     isSuperAdmin()
   )
 

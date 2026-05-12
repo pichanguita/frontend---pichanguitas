@@ -10,8 +10,10 @@ import { parseLocalDate } from '../dateFormatters'
  *   - Ya fue completada por el administrador (`status === 'completed'`), lo
  *     cual habilita al cliente a registrar la reseña inmediatamente después
  *     del cierre del pago, sin tener que esperar al día siguiente.
+ *   - Fue marcada como 'no_show' por el admin/SA: el cliente no se presentó,
+ *     es un estado terminal y debe salir de "Activas" inmediatamente.
  */
-const PAST_STATUSES = ['cancelled', 'completed']
+const PAST_STATUSES = ['cancelled', 'completed', 'no_show']
 
 export const separateReservations = (myReservations) => {
   const today = new Date()

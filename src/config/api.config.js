@@ -16,9 +16,6 @@ export const API_CONFIG = {
   AUTH: {
     LOGIN: `${API_BASE_URL}/api/auth/login`,
     REGISTER: `${API_BASE_URL}/api/auth/register`,
-    LOGOUT: `${API_BASE_URL}/api/auth/logout`,
-    VERIFY_TOKEN: `${API_BASE_URL}/api/auth/verify`,
-    REFRESH_TOKEN: `${API_BASE_URL}/api/auth/refresh`,
     FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/forgot-password`,
     VERIFY_RESET_TOKEN: (token) => `${API_BASE_URL}/api/auth/verify-reset-token/${token}`,
     RESET_PASSWORD: `${API_BASE_URL}/api/auth/reset-password`,

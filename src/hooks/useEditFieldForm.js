@@ -7,6 +7,7 @@ import {
   fetchDistrictsByProvince,
 } from '../services/locations/locationsService'
 import { formatPhone } from '../components/NewFieldModal/utils/fieldValidators'
+import useFieldStore from '../store/modules/fieldStore'
 
 // Mapeo inverso de amenity a service (para precargar servicios desde amenities)
 const AMENITY_TO_SERVICE_MAP = {
@@ -273,9 +274,12 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
           capacity: field.capacity?.toString() || '',
           isActive: field.is_active ?? field.isActive ?? true,
 
-          // Deportes - Asegurar que sportTypes sean IDs numéricos
+          // Deportes - Asegurar que sportTypes sean IDs numéricos.
+          // Sólo se usa el array `sportTypes` (que el backend ya filtra a activos).
+          // Se ignora el campo legacy `sport_type` (singular) porque podría
+          // apuntar a un deporte soft-deleted, lo que llevaría a enviar un id
+          // inactivo y fallar la validación al guardar.
           sportTypes: (() => {
-            // PRIORIZAR el array sportTypes (viene de field_sports en el backend)
             const types = field.sportTypes || field.sport_types || []
             if (Array.isArray(types) && types.length > 0) {
               const firstType = types[0]
@@ -285,14 +289,6 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
               if (typeof firstType === 'string' && !isNaN(parseInt(firstType))) {
                 return types.map((t) => parseInt(t))
               }
-            }
-            // FALLBACK: usar sportType individual si no hay array
-            const sportTypeId = field.sport_type || field.sportType
-            if (
-              typeof sportTypeId === 'number' ||
-              (typeof sportTypeId === 'string' && !isNaN(parseInt(sportTypeId)))
-            ) {
-              return [parseInt(sportTypeId)]
             }
             return []
           })(),
@@ -717,6 +713,25 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
       return
     }
 
+    // Defensa: descartar IDs que ya no estén en el catálogo activo (por ej.
+    // deportes soft-deleted que pudieron quedar en state desde un render
+    // anterior). Si tras el filtro queda vacío, abortar con mensaje claro.
+    const activeSportTypes = useFieldStore.getState().sportTypes || []
+    const activeSportIds = new Set(activeSportTypes.map((s) => parseInt(s.id)))
+    const cleanSportTypes = (formData.sportTypes || [])
+      .map((id) => parseInt(id))
+      .filter((id) => activeSportIds.has(id))
+
+    if (cleanSportTypes.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Selecciona al menos un deporte',
+        text: 'Debes seleccionar al menos un deporte disponible para guardar la cancha.',
+        confirmButtonColor: '#22c55e',
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -758,16 +773,15 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
         price_per_hour: formData.pricePerHour ? parseFloat(formData.pricePerHour) : 0,
         status: formData.status,
         field_type: formData.dimensions.surfaceType || null, // Tipo de superficie (césped sintético, natural, etc.)
-        sport_type:
-          formData.sportTypes && formData.sportTypes.length > 0 ? formData.sportTypes[0] : null,
-        sport_ids: formData.sportTypes || [], // Array de IDs de todos los deportes
+        sport_type: cleanSportTypes.length > 0 ? cleanSportTypes[0] : null,
+        sport_ids: cleanSportTypes, // Array filtrado de IDs activos
         capacity: formData.capacity ? parseInt(formData.capacity) : null,
         requires_advance_payment: formData.requiresAdvancePayment,
         advance_payment_amount: formData.advancePaymentAmount
           ? parseFloat(formData.advancePaymentAmount)
           : 0,
         is_active: formData.isActive,
-        is_multi_sport: formData.sportTypes && formData.sportTypes.length > 1,
+        is_multi_sport: cleanSportTypes.length > 1,
 
         // Dimensiones de la cancha
         dimensions: {

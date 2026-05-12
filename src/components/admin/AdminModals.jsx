@@ -134,6 +134,10 @@ const AdminModals = ({
       <ClientRegistrationModal
         isOpen={modals.booking}
         onClose={() => closeModal('booking')}
+        title="Nueva Reserva"
+        description="Selecciona o registra el cliente y completa los datos de la reserva"
+        submitText="Crear Reserva"
+        submitLoadingText="Creando..."
         onSave={async (clientRegistration) => {
           try {
             // ✅ Mapear paymentStatus del frontend al formato del backend

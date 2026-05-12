@@ -64,28 +64,44 @@ const usePaymentManagement = () => {
     return () => clearInterval(interval)
   }, [])
 
-  // Calcular estadísticas de pagos
-  const paymentStats = useMemo(() => {
-    return calculatePaymentStats(existingReservations, fields)
-  }, [existingReservations, fields])
-
-  // Filtrar reservas según el tab activo
-  const filteredReservations = useMemo(() => {
+  // Reservas filtradas por cancha, fecha y búsqueda (sin filtrar por tab).
+  // Esta es la base que comparten:
+  //   - paymentStats: para que los badges de las pestañas reflejen el scope actual
+  //     (ej: al elegir una cancha específica, los contadores se ajustan).
+  //   - filteredReservations: agrega además el filtro por activeTab.
+  // Antes paymentStats leía existingReservations sin filtrar, por eso los badges
+  // mostraban totales globales aunque la tabla estuviera vacía.
+  const scopedReservations = useMemo(() => {
     return filterReservations(existingReservations, {
-      activeTab,
+      activeTab: 'all',
       searchTerm,
       selectedField,
       selectedDateRange,
     })
-  }, [existingReservations, activeTab, searchTerm, selectedField, selectedDateRange])
+  }, [existingReservations, searchTerm, selectedField, selectedDateRange])
+
+  // Calcular estadísticas de pagos sobre el scope filtrado
+  const paymentStats = useMemo(() => {
+    return calculatePaymentStats(scopedReservations, fields)
+  }, [scopedReservations, fields])
+
+  // Filtrar reservas según el tab activo (sobre el mismo scope)
+  const filteredReservations = useMemo(() => {
+    return filterReservations(scopedReservations, {
+      activeTab,
+      searchTerm: '',
+      selectedField: 'all',
+      selectedDateRange: 'all',
+    })
+  }, [scopedReservations, activeTab])
 
   // Handler para cuando el cliente no se presenta
   const handleNoShow = (reservation) => {
-    // Usar montos REALES de la base de datos
-    const totalPrice = parseFloat(reservation.totalPrice || reservation.total_price) || 0
-    const advancePaid = parseFloat(reservation.advancePayment || reservation.advance_payment) || 0
+    // Usar montos REALES de la base de datos (total_price = 0 es válido para horas gratis)
+    const totalPrice = parseFloat(reservation.totalPrice ?? reservation.total_price ?? 0) || 0
+    const advancePaid = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
     const pendingAmount =
-      parseFloat(reservation.remainingPayment || reservation.remaining_payment) || 0
+      parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
     const fieldId = reservation.fieldId || reservation.field_id
     const field = fields.find((f) => f.id === fieldId)
@@ -229,16 +245,13 @@ const usePaymentManagement = () => {
     }
 
     // Usar valores REALES de la base de datos
-    // IMPORTANTE: total_price es el precio FINAL (después de descuentos como horas gratis)
-    // subtotal es el precio ANTES de descuentos
+    // IMPORTANTE: total_price es el precio FINAL (después de descuentos como horas gratis).
+    // total_price = 0 es válido cuando el cliente cubrió todo con horas gratis.
     const totalPrice =
-      parseFloat(reservation.totalPrice) ??
-      parseFloat(reservation.total_price) ??
-      parseFloat(reservation.subtotal) ??
-      0
-    const advancePaid = parseFloat(reservation.advancePayment || reservation.advance_payment) || 0
+      parseFloat(reservation.totalPrice ?? reservation.total_price ?? 0) || 0
+    const advancePaid = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
     const pendingAmount =
-      parseFloat(reservation.remainingPayment || reservation.remaining_payment) || 0
+      parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
     const fieldId = reservation.fieldId || reservation.field_id
     const field = fields.find((f) => f.id === fieldId)

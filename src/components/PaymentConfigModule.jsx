@@ -41,6 +41,7 @@ const PaymentConfigModule = () => {
   const [paymentMethods, setPaymentMethods] = useState([])
   const [methodForm, setMethodForm] = useState({ name: '', account_number: '', account_holder: '' })
   const [editingMethodId, setEditingMethodId] = useState(null)
+  const [isSavingMethod, setIsSavingMethod] = useState(false)
 
   // Cargar configuraciones al montar y cuando cambien los fields
   useEffect(() => {
@@ -62,11 +63,15 @@ const PaymentConfigModule = () => {
   }
 
   const saveMethod = async () => {
+    // Guard de re-entrancy: evita que múltiples clicks generen duplicados
+    if (isSavingMethod) return
+
     if (!methodForm.name || !methodForm.account_number) {
       Swal.fire('Error', 'Nombre y número son requeridos', 'error')
       return
     }
     try {
+      setIsSavingMethod(true)
       const url = editingMethodId
         ? `${API_CONFIG.BASE_URL}/api/platform-payment-methods/${editingMethodId}`
         : `${API_CONFIG.BASE_URL}/api/platform-payment-methods`
@@ -86,6 +91,8 @@ const PaymentConfigModule = () => {
       }
     } catch (error) {
       Swal.fire('Error', error.message || 'No se pudo guardar', 'error')
+    } finally {
+      setIsSavingMethod(false)
     }
   }
 
@@ -115,11 +122,15 @@ const PaymentConfigModule = () => {
       const dbConfigs = await fetchPaymentConfigs(token)
 
       // Filtrar canchas: excluir las del super_admin (no se cobra a sí mismo)
-      // Solo mostrar canchas de admins de cancha (rol 2)
+      // Solo mostrar canchas aprobadas y operativas de admins de cancha (rol 2)
       const fieldsToShow = fields.filter((field) => {
         // Excluir canchas donde el adminId sea el mismo que el usuario actual (super_admin)
         // El super_admin no debe cobrarse a sí mismo
         if (user && field.adminId === user.id) {
+          return false
+        }
+        // Solo se cobra mensualidad a canchas aprobadas
+        if (field.approvalStatus && field.approvalStatus !== 'approved') {
           return false
         }
         return true
@@ -148,9 +159,12 @@ const PaymentConfigModule = () => {
       // Fallback a localStorage si falla
       const allConfigs = getAllPaymentConfigs()
 
-      // Filtrar canchas: excluir las del super_admin
+      // Filtrar canchas: excluir las del super_admin y las no aprobadas
       const fieldsToShow = fields.filter((field) => {
         if (user && field.adminId === user.id) {
+          return false
+        }
+        if (field.approvalStatus && field.approvalStatus !== 'approved') {
           return false
         }
         return true
@@ -655,9 +669,12 @@ const PaymentConfigModule = () => {
                 />
                 <button
                   onClick={saveMethod}
-                  className="w-full py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center justify-center gap-2"
+                  disabled={isSavingMethod}
+                  className="w-full py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingMethodId ? (
+                  {isSavingMethod ? (
+                    <>Guardando...</>
+                  ) : editingMethodId ? (
                     <>
                       <Check className="w-4 h-4" /> Actualizar
                     </>

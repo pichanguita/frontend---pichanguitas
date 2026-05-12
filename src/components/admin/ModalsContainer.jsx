@@ -93,6 +93,13 @@ const ModalsContainer = ({
             date: selectedDate?.toISOString().split('T')[0],
           }
           closeClientRegistrationModal()
+          Swal.fire({
+            icon: 'success',
+            title: 'Cliente Registrado',
+            text: `${clientData.name} ha sido registrado exitosamente`,
+            timer: 2000,
+            showConfirmButton: false,
+          })
         }}
         selectedDate={selectedDate}
       />
@@ -109,6 +116,10 @@ const ModalsContainer = ({
       <ClientRegistrationModal
         isOpen={modals.booking}
         onClose={closeBookingModal}
+        title="Nueva Reserva"
+        description="Selecciona o registra el cliente y completa los datos de la reserva"
+        submitText="Crear Reserva"
+        submitLoadingText="Creando..."
         onSave={async (clientRegistration) => {
           try {
             // ✅ Mapear paymentStatus del frontend al formato del backend

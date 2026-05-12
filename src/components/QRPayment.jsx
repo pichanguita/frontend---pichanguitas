@@ -4,7 +4,15 @@ import { Copy, CheckCircle, Smartphone, X, Upload, Image, Trash2 } from 'lucide-
 import Swal from 'sweetalert2'
 import { API_CONFIG } from '../config/api.config'
 
-const QRPayment = ({ method, amount, onPaymentComplete, onCancel }) => {
+const QRPayment = ({
+  method,
+  amount,
+  isAdvance = false,
+  totalAmount = 0,
+  remainingAmount = 0,
+  onPaymentComplete,
+  onCancel,
+}) => {
   const [qrCodeUrl, setQrCodeUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [isLoadingQR, setIsLoadingQR] = useState(true)
@@ -14,7 +22,7 @@ const QRPayment = ({ method, amount, onPaymentComplete, onCancel }) => {
 
   useEffect(() => {
     loadOrGenerateQRCode()
-  }, [method, amount])
+  }, [method, amount, isAdvance])
 
   const loadOrGenerateQRCode = async () => {
     setIsLoadingQR(true)
@@ -44,13 +52,15 @@ const QRPayment = ({ method, amount, onPaymentComplete, onCancel }) => {
       // Generar QR específico para cada método
       let qrData = ''
 
+      const conceptLabel = isAdvance ? 'Adelanto reserva cancha' : 'Reserva cancha'
+
       if (method.id === 'yape') {
         // Formato de QR para Yape (simulado - en producción sería el formato real de Yape)
         qrData = JSON.stringify({
           action: 'yape_payment',
           phone: method.qrData?.phone || method.accountNumber,
           amount: amount,
-          concept: `Reserva cancha - ${amount} soles`,
+          concept: `${conceptLabel} - ${amount} soles`,
           merchant: method.qrData?.name || method.accountHolder || '',
         })
       } else if (method.id === 'plin') {
@@ -59,7 +69,7 @@ const QRPayment = ({ method, amount, onPaymentComplete, onCancel }) => {
           action: 'plin_payment',
           phone: method.qrData?.phone || method.accountNumber,
           amount: amount,
-          concept: `Reserva cancha - ${amount} soles`,
+          concept: `${conceptLabel} - ${amount} soles`,
           merchant: method.qrData?.name || method.accountHolder || '',
         })
       }
@@ -216,8 +226,23 @@ const QRPayment = ({ method, amount, onPaymentComplete, onCancel }) => {
             Pagar con {method.name}
           </h3>
           <p className="text-secondary-600 mt-2 text-sm sm:text-base">
-            Monto a pagar: <span className="font-bold text-lg sm:text-xl">S/ {amount}</span>
+            {isAdvance ? 'Monto del adelanto a pagar:' : 'Monto a pagar:'}{' '}
+            <span className="font-bold text-lg sm:text-xl">S/ {Number(amount).toFixed(2)}</span>
           </p>
+          {isAdvance && (
+            <div className="mt-2 inline-flex flex-col items-center gap-0.5 bg-amber-50 border border-amber-300 rounded-lg px-3 py-1.5">
+              <p className="text-xs text-amber-800">
+                💡 Estás pagando solo el <strong>adelanto</strong> para confirmar la reserva.
+              </p>
+              <p className="text-xs text-amber-700">
+                Saldo restante (se paga en cancha):{' '}
+                <strong>S/ {Number(remainingAmount).toFixed(2)}</strong>
+              </p>
+              <p className="text-[10px] text-amber-600">
+                Total de la reserva: S/ {Number(totalAmount).toFixed(2)}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* QR Code */}
@@ -307,11 +332,13 @@ const QRPayment = ({ method, amount, onPaymentComplete, onCancel }) => {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs sm:text-sm text-secondary-700">Monto:</span>
+              <span className="text-xs sm:text-sm text-secondary-700">
+                {isAdvance ? 'Monto del adelanto:' : 'Monto:'}
+              </span>
               <div className="flex items-center space-x-2">
-                <span className="font-mono text-xs sm:text-sm">S/ {amount}</span>
+                <span className="font-mono text-xs sm:text-sm">S/ {Number(amount).toFixed(2)}</span>
                 <button
-                  onClick={() => copyToClipboard(amount.toString(), 'Monto')}
+                  onClick={() => copyToClipboard(Number(amount).toFixed(2), 'Monto')}
                   className="p-1 hover:bg-secondary-200 rounded transition-colors duration-200"
                 >
                   {copied === 'Monto' ? (

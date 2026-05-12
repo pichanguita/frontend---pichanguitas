@@ -14,6 +14,7 @@ const ReservationCard = ({ reservation, index, onCancel }) => {
   const totalPrice = parseFloat(reservation.totalPrice || 0)
   const isPaymentComplete =
     reservation.paymentStatus === 'fully_paid' ||
+    reservation.paymentStatus === 'paid' ||
     (remainingPayment === 0 && advancePayment >= totalPrice && totalPrice > 0)
 
   return (

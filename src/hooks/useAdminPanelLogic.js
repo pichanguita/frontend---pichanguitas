@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ADMIN_TABS } from '../constants'
 
+const SESSION_CHECK_INTERVAL_MS = 60000
+
 export const useAdminPanelLogic = ({
   user,
   isAuthenticated,
@@ -12,7 +14,6 @@ export const useAdminPanelLogic = ({
   addActivityLog,
   logout,
   checkSession,
-  extendSession,
 }) => {
   const navigate = useNavigate()
 
@@ -26,15 +27,8 @@ export const useAdminPanelLogic = ({
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedDayReservations, setSelectedDayReservations] = useState([])
 
-  // Refs para evitar re-renders en useEffect
-  const lastActivityRef = useRef(0)
   const checkSessionRef = useRef(checkSession)
-  const extendSessionRef = useRef(extendSession)
-  const THROTTLE_INTERVAL = 60000 // Solo extender sesion cada 60 segundos
-
-  // Actualizar refs en cada render (sin useEffect)
   checkSessionRef.current = checkSession
-  extendSessionRef.current = extendSession
 
   // Set initial tab based on user role
   useEffect(() => {
@@ -47,42 +41,28 @@ export const useAdminPanelLogic = ({
     }
   }, [user, isSuperAdmin])
 
-  // Session management
+  // Validación periódica del JWT + al volver a la pestaña (visibilitychange).
+  // El interceptor global cubre el caso de respuesta del backend; aquí
+  // detectamos expiración por tiempo aunque el usuario no haga peticiones.
   useEffect(() => {
     if (!isAuthenticated) return
 
-    try {
-      if (!checkSessionRef.current()) {
-        return
-      }
+    if (!checkSessionRef.current()) return
 
-      const handleActivity = () => {
-        const now = Date.now()
-        // Throttle: solo extender sesion si paso el intervalo minimo
-        if (now - lastActivityRef.current >= THROTTLE_INTERVAL) {
-          lastActivityRef.current = now
-          extendSessionRef.current()
-        }
-      }
+    const intervalId = setInterval(() => {
+      checkSessionRef.current()
+    }, SESSION_CHECK_INTERVAL_MS)
 
-      // Solo eventos que indican actividad real, no mousemove continuo
-      const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'click']
-      events.forEach((event) => {
-        document.addEventListener(event, handleActivity, { passive: true })
-      })
-
-      const inactivityTimer = setInterval(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
         checkSessionRef.current()
-      }, 60000)
-
-      return () => {
-        events.forEach((event) => {
-          document.removeEventListener(event, handleActivity)
-        })
-        clearInterval(inactivityTimer)
       }
-    } catch (error) {
-      console.error('Error in useEffect:', error)
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [isAuthenticated])
 

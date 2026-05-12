@@ -377,32 +377,17 @@ const useFieldStore = create((set, get) => ({
           return false
         }
 
-        // 2. Filtrar por tipo de deporte (ahora acepta múltiples deportes)
-        // sportTypes es un array de IDs de deportes seleccionados
-        const fieldSportTypeId = parseInt(field.sportType)
-
-        // Verificar si la cancha es multiuso (acepta cualquier deporte)
-        if (field.fieldType === 'multiuso') {
-          // Canchas multiuso siempre pasan el filtro de deporte
-        } else if (!isNaN(fieldSportTypeId)) {
-          // Verificar si el deporte de la cancha está en la lista de deportes seleccionados
-          const matchesSport = sportTypes.some((sportId) => parseInt(sportId) === fieldSportTypeId)
-          if (!matchesSport) {
-            return false
-          }
-        } else {
-          // Fallback: comparación legacy por nombre o valor directo
-          if (field.sportTypes && Array.isArray(field.sportTypes)) {
-            const matchesLegacy = sportTypes.some((sportId) => field.sportTypes.includes(sportId))
-            if (!matchesLegacy) {
-              return false
-            }
-          } else {
-            const matchesLegacy = sportTypes.some((sportId) => field.sportType === sportId)
-            if (!matchesLegacy && field.sportType !== 'multiuso') {
-              return false
-            }
-          }
+        // 2. Filtrar por tipo de deporte.
+        // Fuente de verdad multi-deporte: field.sportTypes (array de IDs activos
+        // desde field_sports). El campo legacy field.sportType representa solo
+        // UN deporte de la cancha; usarlo aquí ocultaba canchas multi-deporte
+        // al filtrar por sus deportes secundarios.
+        const fieldSports = Array.isArray(field.sportTypes) ? field.sportTypes : []
+        const matchesSport = sportTypes.some((sportId) =>
+          fieldSports.some((fId) => parseInt(fId) === parseInt(sportId))
+        )
+        if (!matchesSport) {
+          return false
         }
 
         // 3. Verificar estado contra la fecha solicitada.

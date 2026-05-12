@@ -10,6 +10,7 @@ import {
   UserCircle,
   Phone,
   Gift,
+  Trophy,
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
@@ -62,8 +63,25 @@ const ConfirmationPanel = ({
   availableFreeHours = 0,
   freeHoursToUse = 0,
   onToggleFreeHours,
+  // Deporte específico para esta reserva
+  // - allSportTypes: catálogo global de deportes [{id, name, ...}]
+  // - selectedReservationSport: id del deporte elegido
+  // - onReservationSportChange(id): cambia el deporte
+  // El selector solo se muestra si la cancha ofrece más de un deporte; en
+  // canchas mono-deporte se asigna automáticamente sin UI extra.
+  allSportTypes = [],
+  selectedReservationSport = null,
+  onReservationSportChange,
 }) => {
   if (!selectedFieldForReservation) return null
+
+  const fieldSportIds = Array.isArray(selectedFieldForReservation.sportTypes)
+    ? selectedFieldForReservation.sportTypes
+    : []
+  const fieldSports = fieldSportIds
+    .map((id) => allSportTypes.find((s) => s.id === id))
+    .filter(Boolean)
+  const showSportSelector = fieldSports.length > 1
 
   const sportType =
     selectedFieldForReservation.sportTypes?.[0] ||
@@ -493,6 +511,33 @@ const ConfirmationPanel = ({
                   {selectedCustomer
                     ? 'Cliente seleccionado. Puedes modificar el teléfono si es necesario.'
                     : 'Selecciona un cliente existente o ingresa un nuevo número.'}
+                </p>
+              </div>
+            )}
+
+            {/* Selector de deporte (solo canchas multi-deporte) */}
+            {showSportSelector && (
+              <div className="mb-4">
+                <label className="text-sm font-bold text-secondary-900 mb-2 block flex items-center gap-2">
+                  <Trophy className="w-4 h-4" style={{ color: '#ffd500' }} />
+                  Deporte que jugarás en esta reserva:
+                </label>
+                <select
+                  value={selectedReservationSport ?? ''}
+                  onChange={(e) =>
+                    onReservationSportChange &&
+                    onReservationSportChange(Number(e.target.value))
+                  }
+                  className="w-full px-4 py-3 text-lg border-2 border-secondary-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {fieldSports.map((sport) => (
+                    <option key={sport.id} value={sport.id}>
+                      {sport.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-secondary-500 mt-1">
+                  Esta cancha ofrece varios deportes. Indica cuál realizarás.
                 </p>
               </div>
             )}

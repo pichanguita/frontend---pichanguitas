@@ -76,10 +76,10 @@ const PendingFieldCard = ({ field, onApprove, onReject, onViewDetails }) => {
             </div>
             <div className="text-right text-sm text-gray-500">
               <p>Creada: {formatDate(field.createdAt)}</p>
-              {field.createdBy && (
+              {field.adminName && (
                 <p className="flex items-center justify-end mt-1">
                   <User className="w-3 h-3 mr-1" />
-                  {field.createdBy.name}
+                  {field.adminName}
                 </p>
               )}
             </div>
@@ -218,7 +218,7 @@ const PendingFieldsModule = () => {
       html: `
         <div class="text-left">
           <p><strong>Cancha:</strong> ${field.name}</p>
-          <p><strong>Creada por:</strong> ${field.createdBy?.name}</p>
+          <p><strong>Creada por:</strong> ${field.adminName || 'Administrador'}</p>
           <p><strong>Ubicación:</strong> ${field.location}</p>
           <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded">
             <p class="text-sm text-green-700">
@@ -258,7 +258,7 @@ const PendingFieldsModule = () => {
       html: `
         <div class="text-left mb-4">
           <p><strong>Cancha:</strong> ${field.name}</p>
-          <p><strong>Creada por:</strong> ${field.createdBy?.name}</p>
+          <p><strong>Creada por:</strong> ${field.adminName || 'Administrador'}</p>
           <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded">
             <p class="text-sm text-red-700">
               ❌ Al rechazar, la cancha no estará disponible para reservas

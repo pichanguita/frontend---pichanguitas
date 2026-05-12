@@ -83,15 +83,43 @@ export const compressVoucherImage = async (file) => {
 
 /**
  * Genera las instrucciones de pago para métodos bancarios
+ *
+ * @param {string} methodId - 'efectivo' | 'yape' | 'plin' | 'bcp' | 'interbank'
+ * @param {object} method - Método de pago (cuenta, titular, etc.)
+ * @param {number} amountToPay - Monto que el cliente paga AHORA (adelanto si la cancha lo exige, o total)
+ * @param {object} selectedField - Cancha seleccionada
+ * @param {array} _selectedTimeRanges
+ * @param {object} advanceInfo - Información de adelanto (isAdvanceOnlinePayment, remainingAfterAdvance, ...)
+ * @param {number} totalReservation - Total real de la reserva (para mostrar desglose)
  */
 export const getPaymentInstructions = (
   methodId,
   method,
-  totalAmount,
+  amountToPay,
   selectedField,
   _selectedTimeRanges,
-  _advanceInfo = null
+  advanceInfo = null,
+  totalReservation = null
 ) => {
+  const isAdvance = Boolean(advanceInfo?.isAdvanceOnlinePayment)
+  const remainingAfterAdvance = Number(advanceInfo?.remainingAfterAdvance || 0)
+  const totalToShow = totalReservation != null ? Number(totalReservation) : Number(amountToPay)
+  const amountFmt = Number(amountToPay).toFixed(2)
+  const totalFmt = totalToShow.toFixed(2)
+  const remainingFmt = remainingAfterAdvance.toFixed(2)
+
+  // Etiqueta y bloque de desglose reutilizable
+  const amountLabel = isAdvance ? 'Monto del adelanto' : 'Monto'
+  const advanceBreakdownBlock = isAdvance
+    ? `
+        <div class="mt-2 p-2 rounded bg-amber-100 border border-amber-300 text-xs text-amber-800">
+          💡 Estás pagando solo el <strong>adelanto</strong> para confirmar tu reserva.<br/>
+          Saldo restante (se paga en cancha): <strong>S/ ${remainingFmt}</strong><br/>
+          Total de la reserva: <strong>S/ ${totalFmt}</strong>
+        </div>
+      `
+    : ''
+
   const instructions = {
     efectivo: {
       icon: 'question',
@@ -102,7 +130,7 @@ export const getPaymentInstructions = (
             <h4 class="font-semibold text-amber-800 mb-3">⚠️ Confirmación importante:</h4>
             <p class="text-sm text-amber-700 mb-3">
               ¿Está dispuesto a cancelar sabiendo que el monto pendiente por cancelar es de
-              <strong class="text-lg">S/ ${totalAmount}</strong> soles?
+              <strong class="text-lg">S/ ${totalFmt}</strong> soles?
             </p>
             <ul class="space-y-2 text-sm text-amber-700">
               <li>• Su reserva quedará confirmada sin pago previo</li>
@@ -123,7 +151,7 @@ export const getPaymentInstructions = (
     },
     yape: {
       icon: 'info',
-      title: 'Pagar con Yape',
+      title: isAdvance ? 'Pagar adelanto con Yape' : 'Pagar con Yape',
       html: `
         <div class="text-left space-y-4">
           <div class="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
@@ -132,10 +160,11 @@ export const getPaymentInstructions = (
               <li>1. Abre tu app Yape</li>
               <li>2. Selecciona "Transferir dinero"</li>
               <li>3. Ingresa el número: <strong>${method?.accountNumber || 'No configurado'}</strong></li>
-              <li>4. Monto: <strong>S/ ${totalAmount}</strong></li>
-              <li>5. Concepto: <strong>Cancha ${selectedField?.name}</strong></li>
+              <li>4. ${amountLabel}: <strong>S/ ${amountFmt}</strong></li>
+              <li>5. Concepto: <strong>${isAdvance ? 'Adelanto ' : ''}Cancha ${selectedField?.name}</strong></li>
               <li>6. Confirma la transferencia</li>
             </ol>
+            ${advanceBreakdownBlock}
           </div>
           <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-500">
             <p class="text-sm text-amber-700">
@@ -148,7 +177,7 @@ export const getPaymentInstructions = (
     },
     plin: {
       icon: 'info',
-      title: 'Pagar con Plin',
+      title: isAdvance ? 'Pagar adelanto con Plin' : 'Pagar con Plin',
       html: `
         <div class="text-left space-y-4">
           <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
@@ -157,10 +186,11 @@ export const getPaymentInstructions = (
               <li>1. Abre tu app Plin</li>
               <li>2. Selecciona "Enviar dinero"</li>
               <li>3. Ingresa el número: <strong>${method?.accountNumber || 'No configurado'}</strong></li>
-              <li>4. Monto: <strong>S/ ${totalAmount}</strong></li>
-              <li>5. Concepto: <strong>Reserva ${selectedField?.name}</strong></li>
+              <li>4. ${amountLabel}: <strong>S/ ${amountFmt}</strong></li>
+              <li>5. Concepto: <strong>${isAdvance ? 'Adelanto ' : ''}Reserva ${selectedField?.name}</strong></li>
               <li>6. Confirma la operación</li>
             </ol>
+            ${advanceBreakdownBlock}
           </div>
           <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-500">
             <p class="text-sm text-amber-700">
@@ -173,7 +203,7 @@ export const getPaymentInstructions = (
     },
     bcp: {
       icon: 'info',
-      title: 'Transferencia BCP',
+      title: isAdvance ? 'Transferencia BCP (Adelanto)' : 'Transferencia BCP',
       html: `
         <div class="text-left space-y-4">
           <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
@@ -188,9 +218,10 @@ export const getPaymentInstructions = (
                 </button>
               </div>
               <div><strong>Titular:</strong> Canchas Apurímac</div>
-              <div><strong>Monto:</strong> S/ ${totalAmount}</div>
-              <div><strong>Concepto:</strong> Reserva ${selectedField?.name}</div>
+              <div><strong>${amountLabel}:</strong> S/ ${amountFmt}</div>
+              <div><strong>Concepto:</strong> ${isAdvance ? 'Adelanto ' : ''}Reserva ${selectedField?.name}</div>
             </div>
+            ${advanceBreakdownBlock}
           </div>
           <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-500">
             <p class="text-sm text-amber-700">
@@ -203,7 +234,7 @@ export const getPaymentInstructions = (
     },
     interbank: {
       icon: 'info',
-      title: 'Transferencia Interbank',
+      title: isAdvance ? 'Transferencia Interbank (Adelanto)' : 'Transferencia Interbank',
       html: `
         <div class="text-left space-y-4">
           <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
@@ -218,9 +249,10 @@ export const getPaymentInstructions = (
                 </button>
               </div>
               <div><strong>Titular:</strong> Canchas Apurímac</div>
-              <div><strong>Monto:</strong> S/ ${totalAmount}</div>
-              <div><strong>Concepto:</strong> Reserva ${selectedField?.name}</div>
+              <div><strong>${amountLabel}:</strong> S/ ${amountFmt}</div>
+              <div><strong>Concepto:</strong> ${isAdvance ? 'Adelanto ' : ''}Reserva ${selectedField?.name}</div>
             </div>
+            ${advanceBreakdownBlock}
           </div>
           <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-500">
             <p class="text-sm text-amber-700">

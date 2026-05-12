@@ -30,7 +30,6 @@ const AdminPanel = () => {
     user = null,
     logout = () => {},
     checkSession = () => true,
-    extendSession = () => {},
     hasPermission = () => false,
     addActivityLog = () => {},
     createAdmin = () => {},
@@ -49,13 +48,20 @@ const AdminPanel = () => {
     getPendingRefunds = () => [],
     pendingRefunds = [],
     markRefundAsProcessed = () => {},
-    sportTypes = [],
   } = bookingStore || {}
 
   const { alerts = [] } = alertStore || {}
 
-  // Obtener funciones y fields del fieldStore para actualizar estado y obtener canchas pendientes
-  const { updateFieldLocal, fields: fieldStoreFields } = useFieldStore()
+  // Obtener funciones, fields y sportTypes del fieldStore.
+  // sportTypes debe leerse aquí (no desde bookingStore) porque el facade del
+  // bookingStore lo expone vía getter y el spread operator que arma el store
+  // pierde los getters: el valor queda congelado en [] al inicializar y
+  // loadSportTypes() actualiza fieldStore, no bookingStore.
+  const {
+    updateFieldLocal,
+    fields: fieldStoreFields,
+    sportTypes = [],
+  } = useFieldStore()
 
   // Hook for centralized modal management
   const { modals, openModal, closeModal } = useModalManager([
@@ -108,7 +114,6 @@ const AdminPanel = () => {
     addActivityLog,
     logout,
     checkSession,
-    extendSession,
   })
 
   // Check user anniversaries (super admin only)
@@ -278,16 +283,21 @@ const AdminPanel = () => {
     }
   }, [isAuthenticated])
 
-  // Polling periódico de fields y solicitudes de registro para mantener los
-  // badges de "Aprobaciones" y "Solicitudes" sincronizados con el backend.
+  // Polling periódico de todos los contadores del header para que los badges
+  // (Aprobaciones, Solicitudes, Pendientes, Pagos, Reembolsos) reflejen los
+  // cambios que llegan del backend sin requerir un refresh manual.
   useEffect(() => {
     if (!isAuthenticated) return
 
-    const interval = setInterval(() => {
+    const refreshCounters = () => {
       useFieldStore.getState().loadFields()
       refreshRegistrationStats()
-    }, POLLING_CONFIG.ADMIN_COUNTERS_INTERVAL_MS)
+      const store = useBookingStore.getState()
+      store.loadReservations?.()
+      store.loadRefunds?.()
+    }
 
+    const interval = setInterval(refreshCounters, POLLING_CONFIG.ADMIN_COUNTERS_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [isAuthenticated, refreshRegistrationStats])
 

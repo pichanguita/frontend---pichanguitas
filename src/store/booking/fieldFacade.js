@@ -19,6 +19,11 @@ export const createFieldFacade = (set, get) => ({
   // Estado local - ahora es un array para selección múltiple
   selectedSportTypes: [],
 
+  // Deporte específico elegido por el cliente para la reserva en curso
+  // (paso 3 de BookingFlow). Solo aplica cuando la cancha es multi-deporte.
+  // Para canchas con un solo deporte se asigna automáticamente al confirmar.
+  selectedReservationSport: null,
+
   // Setter local - toggle para agregar/quitar deportes
   setSelectedSportType: (sportType) => {
     const current = get().selectedSportTypes || []
@@ -38,6 +43,10 @@ export const createFieldFacade = (set, get) => ({
       selectedSportTypes: sportTypes,
       availableFields: [],
     })
+  },
+
+  setSelectedReservationSport: (sportId) => {
+    set({ selectedReservationSport: sportId })
   },
 
   // Operaciones CRUD de campos - delegadas a fieldStore

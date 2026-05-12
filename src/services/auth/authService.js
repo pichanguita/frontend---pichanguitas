@@ -1,11 +1,9 @@
 /**
  * Servicio de Autenticación
  *
- * Maneja todas las operaciones relacionadas con autenticación:
- * - Login
- * - Registro
- * - Logout
- * - Verificación de token
+ * Maneja login y registro contra el backend.
+ * El logout es puramente cliente (limpia el store): no hay endpoint en el
+ * backend para invalidar tokens. La expiración real la controla el JWT.
  */
 
 import { API_CONFIG, getAuthHeaders } from '@/config/api.config'
@@ -86,96 +84,5 @@ export const registerUser = async (userData) => {
   } catch (error) {
     console.error('❌ Error en registro:', error)
     throw new Error(error.message || 'Error al registrar usuario')
-  }
-}
-
-/**
- * Cierra la sesión del usuario
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Respuesta del servidor
- */
-export const logoutUser = async (token) => {
-  try {
-    const response = await fetch(API_CONFIG.AUTH.LOGOUT, {
-      method: 'POST',
-      headers: getAuthHeaders(token),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Error al cerrar sesión')
-    }
-
-    return {
-      success: true,
-      message: data.message,
-    }
-  } catch (error) {
-    console.error('❌ Error al cerrar sesión:', error)
-    // No lanzar error en logout para permitir cierre de sesión local
-    return {
-      success: false,
-      message: error.message,
-    }
-  }
-}
-
-/**
- * Verifica si un token es válido
- * @param {string} token - Token a verificar
- * @returns {Promise<Object>} Información del usuario si el token es válido
- */
-export const verifyToken = async (token) => {
-  try {
-    const response = await fetch(API_CONFIG.AUTH.VERIFY_TOKEN, {
-      method: 'GET',
-      headers: getAuthHeaders(token),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Token inválido')
-    }
-
-    return {
-      success: true,
-      user: data.user,
-    }
-  } catch (error) {
-    console.error('❌ Token inválido:', error)
-    return {
-      success: false,
-      message: error.message,
-    }
-  }
-}
-
-/**
- * Refresca el token de autenticación
- * @param {string} token - Token actual
- * @returns {Promise<Object>} Nuevo token
- */
-export const refreshToken = async (token) => {
-  try {
-    const response = await fetch(API_CONFIG.AUTH.REFRESH_TOKEN, {
-      method: 'POST',
-      headers: getAuthHeaders(token),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Error al refrescar token')
-    }
-
-    return {
-      success: true,
-      token: data.token,
-    }
-  } catch (error) {
-    console.error('❌ Error al refrescar token:', error)
-    throw new Error(error.message)
   }
 }

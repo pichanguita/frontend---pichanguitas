@@ -240,12 +240,28 @@ const RegistrationRequestsModule = () => {
                         {selectedRequest.businessRuc || 'No proporcionado'}
                       </p>
                     </div>
+                    <div className="bg-white rounded-lg p-3 shadow-sm">
+                      <p className="text-xs font-medium text-green-600 mb-1">
+                        <Phone className="w-3 h-3 inline" /> Teléfono del Negocio
+                      </p>
+                      <p className="font-semibold text-secondary-900">
+                        {selectedRequest.businessPhone || 'No proporcionado'}
+                      </p>
+                    </div>
                     <div className="bg-white rounded-lg p-3 shadow-sm md:col-span-2">
                       <p className="text-xs font-medium text-green-600 mb-1">
                         <MapPin className="w-3 h-3 inline" /> Dirección
                       </p>
                       <p className="font-semibold text-secondary-900">
                         {selectedRequest.businessAddress}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 shadow-sm md:col-span-2">
+                      <p className="text-xs font-medium text-green-600 mb-1">
+                        <MapPin className="w-3 h-3 inline" /> Referencia de Ubicación
+                      </p>
+                      <p className="font-semibold text-secondary-900 whitespace-pre-line">
+                        {selectedRequest.businessReference || 'No proporcionado'}
                       </p>
                     </div>
                     {selectedRequest.sportTypes && selectedRequest.sportTypes.length > 0 && (

@@ -282,12 +282,14 @@ const NewFieldModal = ({ isOpen, onClose, onSave }) => {
             ) : (
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
+                  type="button"
                   onClick={handleClose}
                   className="flex-1 bg-secondary-200 hover:bg-secondary-300 text-secondary-700 py-3 px-6 rounded-xl font-semibold transition-colors duration-200"
                 >
                   Cancelar
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('form')}
                   className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center space-x-2"
                   disabled={!selectedLocation}

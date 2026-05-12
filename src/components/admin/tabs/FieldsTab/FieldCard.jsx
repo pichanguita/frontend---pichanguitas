@@ -92,10 +92,14 @@ export const FieldCard = ({
               {field.sportNames
                 .slice(0, UI_CONFIG.MAX_SPORTS_ICONS_DISPLAYED)
                 .map((sport, index) => {
+                  // Preferir el icono que el backend envía con el field (sportIcons[i]).
+                  // Esto funciona aun cuando el deporte fue soft-deleted del catálogo.
+                  // Fallback al catálogo activo y luego al icono por defecto.
+                  const fieldIcon = field.sportIcons?.[index]
                   const sportData = sportTypes.find((s) => s.name === sport)
                   return (
                     <span key={index} className="text-lg" title={sport}>
-                      {sportData?.icon || DEFAULT_ICONS.SOCCER}
+                      {fieldIcon || sportData?.icon || DEFAULT_ICONS.SOCCER}
                     </span>
                   )
                 })}

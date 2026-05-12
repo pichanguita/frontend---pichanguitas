@@ -15,6 +15,11 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { fetchImagesByField } from '../services/fieldImages/fieldImagesService'
 import { getToken, API_CONFIG } from '../config/api.config'
+import {
+  FIELD_APPROVAL_STATUS,
+  FIELD_APPROVAL_STATUS_LABELS,
+  FIELD_STATUS_LABELS,
+} from '../constants/fieldStatus'
 
 const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
   const [fieldImages, setFieldImages] = useState([])
@@ -94,29 +99,32 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
 
   if (!isOpen || !field) return null
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'available':
-        return 'text-green-600 bg-green-100'
-      case 'maintenance':
-        return 'text-yellow-600 bg-yellow-100'
-      case 'closed':
-        return 'text-red-600 bg-red-100'
-      default:
-        return 'text-gray-600 bg-gray-100'
+  // Resuelve el badge aplicando la misma prioridad que FieldCard:
+  // approvalStatus (rejected/pending) > status (available/maintenance/closed).
+  // Sin esta prioridad una cancha rechazada se mostraba como "Disponible".
+  const getDisplayStatus = (f) => {
+    if (f?.approvalStatus === FIELD_APPROVAL_STATUS.REJECTED) {
+      return {
+        label: FIELD_APPROVAL_STATUS_LABELS[FIELD_APPROVAL_STATUS.REJECTED],
+        className: 'text-red-600 bg-red-100',
+      }
     }
-  }
-
-  const getStatusText = (status) => {
-    switch (status) {
+    if (f?.approvalStatus === FIELD_APPROVAL_STATUS.PENDING) {
+      return {
+        label: FIELD_APPROVAL_STATUS_LABELS[FIELD_APPROVAL_STATUS.PENDING],
+        className: 'text-yellow-600 bg-yellow-100',
+      }
+    }
+    const operationalLabel = FIELD_STATUS_LABELS[f?.status] || 'Desconocido'
+    switch (f?.status) {
       case 'available':
-        return 'Disponible'
+        return { label: operationalLabel, className: 'text-green-600 bg-green-100' }
       case 'maintenance':
-        return 'En Mantenimiento'
+        return { label: 'En Mantenimiento', className: 'text-yellow-600 bg-yellow-100' }
       case 'closed':
-        return 'Cerrado'
+        return { label: operationalLabel, className: 'text-red-600 bg-red-100' }
       default:
-        return 'Desconocido'
+        return { label: operationalLabel, className: 'text-gray-600 bg-gray-100' }
     }
   }
 
@@ -175,11 +183,16 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Estado:</span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(field.status)}`}
-                    >
-                      {getStatusText(field.status)}
-                    </span>
+                    {(() => {
+                      const ds = getDisplayStatus(field)
+                      return (
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm font-medium ${ds.className}`}
+                        >
+                          {ds.label}
+                        </span>
+                      )
+                    })()}
                   </div>
 
                   <div className="flex justify-between items-center">
@@ -619,6 +632,7 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
                       {(() => {
                         // Obtener array de nombres de deportes desde sportNames (backend transformado)
                         const sportsArray = field.sportNames || field.sport_names || []
+                        const sportIconsArray = field.sportIcons || field.sport_icons || []
                         const isMulti = field.is_multi_sport || field.isMultiSport || false
 
                         if (Array.isArray(sportsArray) && sportsArray.length > 0) {
@@ -635,7 +649,7 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
                                     key={index}
                                     className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded"
                                   >
-                                    ⚽ {sport}
+                                    {sportIconsArray[index] || '⚽'} {sport}
                                   </span>
                                 ))}
                               </div>
@@ -682,14 +696,16 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
               Cerrar
             </button>
 
-            {onSelectField && field.status === 'available' && (
-              <button
-                onClick={() => onSelectField(field)}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-xl font-semibold transition-colors duration-200"
-              >
-                Seleccionar esta cancha
-              </button>
-            )}
+            {onSelectField &&
+              field.status === 'available' &&
+              field.approvalStatus === FIELD_APPROVAL_STATUS.APPROVED && (
+                <button
+                  onClick={() => onSelectField(field)}
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-xl font-semibold transition-colors duration-200"
+                >
+                  Seleccionar esta cancha
+                </button>
+              )}
           </div>
         </motion.div>
       </motion.div>

@@ -38,11 +38,17 @@ const PaymentFlow = ({ onBack, onComplete }) => {
   const isFreeReservation = pricing?.totalAmount === 0 && pricing?.freeHoursUsed > 0
 
   if (showQR && selectedMethodForQR) {
+    // Si la cancha exige adelanto y el método NO es efectivo, el monto a pagar AHORA
+    // es únicamente el adelanto, no el total. El saldo restante se paga al llegar a la cancha.
+    const qrAmount = advanceInfo?.amountDueNow ?? pricing.totalAmount
     return (
       <div className="max-w-2xl mx-auto px-3 sm:px-0">
         <QRPayment
           method={selectedMethodForQR}
-          amount={pricing.totalAmount}
+          amount={qrAmount}
+          isAdvance={advanceInfo?.isAdvanceOnlinePayment}
+          totalAmount={pricing.totalAmount}
+          remainingAmount={advanceInfo?.remainingAfterAdvance ?? 0}
           onPaymentComplete={handleQRPaymentComplete}
           onCancel={handleQRCancel}
         />

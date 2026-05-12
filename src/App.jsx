@@ -10,7 +10,12 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import ToastNotification from './components/ToastNotification'
 import BadgeUnlockedNotification from './components/BadgeUnlockedNotification'
 import { APP_CONFIG } from '@/config/app.config'
+import { installAuthInterceptor } from '@/utils/authInterceptor'
 // import './utils/testNotifications' // Desactivado - solo activar para pruebas
+
+// Instalar interceptor global que detecta tokens expirados (401/403) y
+// fuerza logout + redirect al login en cualquier petición autenticada.
+installAuthInterceptor()
 
 function App() {
   // Limpiar localStorage una sola vez al cargar

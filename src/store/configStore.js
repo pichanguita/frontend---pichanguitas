@@ -474,9 +474,16 @@ const useConfigStore = create(
               isPhone: result.data.is_phone || false,
               enabled: result.data.enabled !== false,
             }
-            set((state) => ({
-              socialMedia: [...state.socialMedia, mappedItem],
-            }))
+            // El backend es idempotente: si la red ya existía devuelve el mismo id.
+            // Evitar appendizar duplicados en el estado local cuando eso ocurre.
+            set((state) => {
+              const exists = state.socialMedia.some((item) => item.id === mappedItem.id)
+              return {
+                socialMedia: exists
+                  ? state.socialMedia.map((item) => (item.id === mappedItem.id ? mappedItem : item))
+                  : [...state.socialMedia, mappedItem],
+              }
+            })
             return result
           }
           throw new Error(result.message || 'Error al crear')

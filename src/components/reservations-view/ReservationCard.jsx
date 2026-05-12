@@ -106,9 +106,13 @@ const ReservationCard = React.memo(
               </div>
             )}
 
-            {/* Mostrar saldo pendiente si existe */}
+            {/* Mostrar saldo pendiente si existe.
+                Excluir estados terminales (no_show) donde el saldo ya no es cobrable. */}
             {parseFloat(reservation.remainingPayment) > 0 &&
-              reservation.paymentStatus !== 'fully_paid' && (
+              reservation.paymentStatus !== 'fully_paid' &&
+              reservation.paymentStatus !== 'paid' &&
+              reservation.paymentStatus !== 'no_show' &&
+              reservation.status !== 'no_show' && (
                 <div className="flex justify-between gap-2 text-xs sm:text-sm text-amber-600">
                   <span>Saldo pendiente:</span>
                   <span className="font-semibold whitespace-nowrap">
@@ -117,7 +121,13 @@ const ReservationCard = React.memo(
                 </div>
               )}
 
-            {reservation.paymentStatus === 'fully_paid' ? (
+            {reservation.status === 'no_show' || reservation.paymentStatus === 'no_show' ? (
+              <div className="flex justify-between gap-2 text-xs sm:text-sm text-gray-700">
+                <span>Estado de Pago:</span>
+                <span className="font-semibold whitespace-nowrap">No se presentó</span>
+              </div>
+            ) : reservation.paymentStatus === 'fully_paid' ||
+              reservation.paymentStatus === 'paid' ? (
               <div className="flex justify-between gap-2 text-xs sm:text-sm text-green-600">
                 <span>Estado de Pago:</span>
                 <span className="font-semibold whitespace-nowrap">✓ Pagado Completo</span>

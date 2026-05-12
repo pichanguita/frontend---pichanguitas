@@ -10,7 +10,16 @@ import ReservationDataForm from './client-registration/ReservationDataForm'
 import PaymentInfo from './client-registration/PaymentInfo'
 import AvailabilityInfo from './client-registration/AvailabilityInfo'
 
-const ClientRegistrationModal = ({ isOpen, onClose, onSave, selectedDate }) => {
+const ClientRegistrationModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  selectedDate,
+  title = 'Registrar Cliente',
+  description = 'Registro manual de cliente y asignación de cancha',
+  submitText = 'Registrar Cliente',
+  submitLoadingText = 'Registrando...',
+}) => {
   const { customers } = useCustomerStore()
 
   const {
@@ -53,10 +62,10 @@ const ClientRegistrationModal = ({ isOpen, onClose, onSave, selectedDate }) => {
             <div className="flex items-center justify-between p-4 sm:p-6">
               <div>
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
-                  Registrar Cliente
+                  {title}
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                  Registro manual de cliente y asignación de cancha
+                  {description}
                 </p>
               </div>
               <button
@@ -164,12 +173,12 @@ const ClientRegistrationModal = ({ isOpen, onClose, onSave, selectedDate }) => {
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
-                    Registrando...
+                    {submitLoadingText}
                   </>
                 ) : (
                   <>
                     <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                    Registrar Cliente
+                    {submitText}
                   </>
                 )}
               </button>

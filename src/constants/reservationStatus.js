@@ -9,6 +9,7 @@ export const RESERVATION_STATUS = {
   CONFIRMED: 'confirmed',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
+  NO_SHOW: 'no_show',
 }
 
 // Labels para UI
@@ -17,6 +18,7 @@ export const RESERVATION_STATUS_LABELS = {
   [RESERVATION_STATUS.CONFIRMED]: 'Confirmada',
   [RESERVATION_STATUS.COMPLETED]: 'Completada',
   [RESERVATION_STATUS.CANCELLED]: 'Cancelada',
+  [RESERVATION_STATUS.NO_SHOW]: 'No completada',
 }
 
 // Colores para badges/indicadores
@@ -25,6 +27,7 @@ export const RESERVATION_STATUS_COLORS = {
   [RESERVATION_STATUS.CONFIRMED]: 'green',
   [RESERVATION_STATUS.COMPLETED]: 'blue',
   [RESERVATION_STATUS.CANCELLED]: 'red',
+  [RESERVATION_STATUS.NO_SHOW]: 'orange',
 }
 
 // Array de valores válidos
@@ -35,3 +38,4 @@ export const isPending = (status) => status === RESERVATION_STATUS.PENDING
 export const isConfirmed = (status) => status === RESERVATION_STATUS.CONFIRMED
 export const isCompleted = (status) => status === RESERVATION_STATUS.COMPLETED
 export const isCancelled = (status) => status === RESERVATION_STATUS.CANCELLED
+export const isNoShow = (status) => status === RESERVATION_STATUS.NO_SHOW

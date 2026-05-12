@@ -75,7 +75,17 @@ export const getStatusBadge = (reservation) => {
     }
   }
 
-  if (reservation.paymentStatus === 'fully_paid') {
+  // No-show: el cliente no se presentó. El SA/admin marcó la reserva como
+  // 'no_show' (tanto status como payment_status). Es un estado terminal.
+  if (reservation.status === 'no_show' || reservation.paymentStatus === 'no_show') {
+    return {
+      color: 'bg-gray-200 text-gray-800',
+      iconName: 'XCircle',
+      text: 'No se presentó',
+    }
+  }
+
+  if (reservation.paymentStatus === 'fully_paid' || reservation.paymentStatus === 'paid') {
     return {
       color: 'bg-green-100 text-green-800',
       iconName: 'CheckCircle',

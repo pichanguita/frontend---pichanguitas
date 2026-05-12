@@ -31,6 +31,7 @@ export const transformConfigToBackend = (fieldId, config) => {
       field_type: config.fieldType || null,
       capacity: config.capacity || null,
       is_active: config.isActive ?? true,
+      requires_manual_confirmation: config.requiresManualConfirmation ?? false,
     },
 
     // Horarios de la cancha
@@ -179,12 +180,15 @@ const transformRulesToBackend = (rules) => {
 const transformMaintenanceToBackend = (maintenanceSchedules) => {
   if (!Array.isArray(maintenanceSchedules)) return []
 
+  // El default debe coincidir con el primer <option> del select de tipo en
+  // MaintenanceTab ('scheduled'). Antes era 'general', valor que no existe en
+  // las opciones, lo que causaba que el select cayera al primer item al recargar.
   return maintenanceSchedules.map((maintenance) => ({
     start_date: maintenance.startDate || maintenance.start_date,
     end_date: maintenance.endDate || maintenance.end_date,
     reason: maintenance.reason || maintenance.description || '',
     maintenance_type:
-      maintenance.type || maintenance.maintenanceType || maintenance.maintenance_type || 'general',
+      maintenance.type || maintenance.maintenanceType || maintenance.maintenance_type || 'scheduled',
     status: maintenance.status || 'scheduled',
   }))
 }
@@ -264,6 +268,10 @@ export const transformConfigToFrontend = (backendData) => {
     fieldType: backendData.field?.field_type || backendData.fieldType,
     capacity: backendData.field?.capacity || backendData.capacity,
     isActive: backendData.field?.is_active ?? backendData.isActive ?? true,
+    requiresManualConfirmation:
+      backendData.field?.requires_manual_confirmation ??
+      backendData.requiresManualConfirmation ??
+      false,
     // Status de la cancha (importante para actualización en tiempo real del badge)
     status: backendData.field?.status || backendData.status,
 
@@ -395,7 +403,10 @@ const transformMaintenanceToFrontend = (maintenanceSchedules) => {
       startDate: formatDateForInput(maintenance.start_date),
       endDate: formatDateForInput(maintenance.end_date),
       reason: maintenance.reason || maintenance.description || '',
-      type: maintenance.maintenance_type || 'general',
+      // Default 'scheduled' coincide con la primera opción del select de tipo;
+      // un default 'general' no existía entre las opciones y provocaba que el
+      // navegador cayera al primer <option> ("Programado") tras recargar.
+      type: maintenance.maintenance_type || 'scheduled',
       status: maintenance.status || 'scheduled',
     }
   })

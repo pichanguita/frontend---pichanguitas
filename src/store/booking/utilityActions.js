@@ -146,6 +146,7 @@ export const createUtilityActions = (set, get) => ({
       availableTimes: [],
       availableFields: [],
       selectedSportTypes: [],
+      selectedReservationSport: null,
       // Resetear ubicaciones (estado local sincronizado)
       selectedDepartment: '',
       selectedProvince: '',

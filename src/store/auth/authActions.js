@@ -1,12 +1,40 @@
 import { loginUser } from '@/services/auth'
 import { changePasswordAPI, updateMyProfileAPI } from '../../services/users/usersService'
 
+/**
+ * Decodifica el payload de un JWT sin verificar firma. Lo usamos sólo para
+ * leer el campo `exp` y detectar expiración en el cliente. La verificación
+ * real la hace el backend en cada request.
+ */
+const parseJwt = (token) => {
+  if (!token || typeof token !== 'string') return null
+  try {
+    const base64Payload = token.split('.')[1]
+    if (!base64Payload) return null
+    const padded = base64Payload.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(padded))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Calcula el instante en ms en que expira el JWT.
+ * Devuelve null si el token no se puede parsear o no trae `exp`.
+ * Esta es la única fuente de verdad para la expiración de la sesión:
+ * coincide siempre con lo que el backend rechazará.
+ */
+const getTokenExpiryMs = (token) => {
+  const payload = parseJwt(token)
+  if (!payload || typeof payload.exp !== 'number') return null
+  return payload.exp * 1000
+}
+
 // Acciones de autenticacion y sesion
 export const createAuthActions = (set, get) => ({
   // Login
   login: async (credentials) => {
     const { username, password } = credentials
-    const { security } = get()
 
     try {
       // Llamar a la API real del backend
@@ -22,8 +50,8 @@ export const createAuthActions = (set, get) => ({
         throw new Error('Error en la respuesta del servidor')
       }
 
-      // Calcular expiración de sesión
-      const sessionExpiry = Date.now() + security.sessionDuration
+      // La expiración de sesión se deriva del JWT emitido por el backend.
+      const sessionExpiry = getTokenExpiryMs(token)
 
       // Actualizar el estado con los datos del usuario autenticado
       set({
@@ -71,25 +99,22 @@ export const createAuthActions = (set, get) => ({
     })
   },
 
-  // Verificar sesión
+  // Verifica si la sesión sigue vigente. Si el JWT expiró, dispara logout.
+  // El backend es la autoridad final: en cuanto rechace con 401/403, el
+  // interceptor global cerrará sesión, pero esta verificación cliente
+  // permite redirigir sin esperar a la próxima petición.
   checkSession: () => {
-    const { sessionExpiry, isAuthenticated } = get()
+    const { isAuthenticated, token } = get()
 
-    if (isAuthenticated && sessionExpiry) {
-      if (Date.now() > sessionExpiry) {
-        get().logout()
-        return false
-      }
+    if (!isAuthenticated) return false
+
+    const expiryMs = getTokenExpiryMs(token)
+    if (expiryMs !== null && expiryMs <= Date.now()) {
+      get().logout()
+      return false
     }
-    return isAuthenticated
-  },
 
-  // Extender sesión
-  extendSession: () => {
-    const { security } = get()
-    set({
-      sessionExpiry: Date.now() + security.sessionDuration,
-    })
+    return true
   },
 
   // Obtener tiempo restante de bloqueo

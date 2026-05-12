@@ -50,6 +50,7 @@ const usePaymentFlow = (onComplete) => {
     loadFieldPaymentMethods,
     freeHoursToUse,
     setFreeHoursToUse,
+    selectedReservationSport,
   } = useBookingStore()
 
   const { user, isAuthenticated } = useAuthStore()
@@ -98,6 +99,23 @@ const usePaymentFlow = (onComplete) => {
   // Adelanto = adelanto por hora * cantidad de horas
   const calculatedAdvance = fieldAdvancePerHour * hoursReserved
 
+  // Determina si la operación actual es un pago en línea de adelanto
+  // (cancha exige adelanto + método NO es efectivo + hay total a pagar + hay monto de adelanto > 0)
+  const isAdvanceOnlinePayment =
+    fieldRequiresAdvance && !isCashPayment && pricing.totalAmount > 0 && fieldAdvancePerHour > 0
+
+  const advancePaymentAmount = isAdvanceOnlinePayment
+    ? Math.min(calculatedAdvance, pricing.totalAmount)
+    : 0
+  const remainingAfterAdvance = isAdvanceOnlinePayment
+    ? pricing.totalAmount - advancePaymentAmount
+    : 0
+
+  // Monto que el cliente debe pagar AHORA por el método elegido (no efectivo).
+  // Si la cancha exige adelanto y el método es online → paga el adelanto.
+  // En cualquier otro caso → paga el total (efectivo se coordina aparte).
+  const amountDueNow = isAdvanceOnlinePayment ? advancePaymentAmount : pricing.totalAmount
+
   // Valores de adelanto para mostrar en UI
   const advanceInfo = {
     required: fieldRequiresAdvance,
@@ -110,6 +128,11 @@ const usePaymentFlow = (onComplete) => {
     isCashPayment,
     perHour: fieldAdvancePerHour,
     hours: hoursReserved,
+    // Campos nuevos para usar en QR / instrucciones / Swal final
+    isAdvanceOnlinePayment,
+    advancePaymentAmount,
+    remainingAfterAdvance,
+    amountDueNow,
   }
 
   /**
@@ -173,13 +196,16 @@ const usePaymentFlow = (onComplete) => {
     }
 
     // Obtener instrucciones
+    // Pasamos el monto efectivo a pagar AHORA (adelanto si la cancha lo exige y no es efectivo,
+    // o el total en cualquier otro caso). El total real se pasa aparte para mostrar el desglose.
     const instructions = getPaymentInstructions(
       methodId,
       method,
-      pricing.totalAmount,
+      advanceInfo.amountDueNow,
       selectedField,
       selectedTimeRanges,
-      advanceInfo
+      advanceInfo,
+      pricing.totalAmount
     )
 
     if (!instructions) return
@@ -339,6 +365,14 @@ const usePaymentFlow = (onComplete) => {
         }
       }
 
+      // Resolver el deporte a persistir: en canchas multi-deporte viene del
+      // selector del paso 3; en canchas mono-deporte cae al único disponible.
+      const fieldSports = Array.isArray(selectedField?.sportTypes)
+        ? selectedField.sportTypes
+        : []
+      const resolvedSportType =
+        selectedReservationSport ?? fieldSports[0] ?? selectedField?.sportType ?? null
+
       const reservationPayload = {
         field_id: selectedField.id,
         customer_id: customerId,
@@ -359,6 +393,7 @@ const usePaymentFlow = (onComplete) => {
         phone_number: phoneToUse,
         free_hours_used: pricing.freeHoursUsed || 0,
         free_hours_discount: pricing.freeHoursDiscount || 0,
+        sport_type: resolvedSportType,
       }
 
       // Llamar al backend para crear la reserva
@@ -399,6 +434,28 @@ const usePaymentFlow = (onComplete) => {
           // PDF download failed silently
         }
 
+        // Cerrar el modal padre (BookingFlow/PaymentFlow) y resetear el booking
+        // ANTES de mostrar el Swal de éxito. Si lo dejamos para después, el modal
+        // de pago queda visible detrás del Swal y se cierra recién cuando el
+        // usuario despide el Swal — dando la sensación de "dos modales que se
+        // cierran a la vez". Las variables del summary ya están capturadas en el
+        // closure (selectedField, selectedDate, etc.), así que el reset es seguro.
+        resetBooking()
+        if (onComplete) onComplete()
+
+        // Bloque de desglose: si pagó adelanto online, muestra adelanto + saldo en cancha;
+        // si no, muestra solo el total como pago efectuado.
+        const amountBlock =
+          advancePayment > 0
+            ? `
+                  <p><strong>Adelanto pagado:</strong> S/ ${advancePayment.toFixed(2)}</p>
+                  <p><strong>Saldo a pagar en cancha:</strong> S/ ${remainingPayment.toFixed(2)}</p>
+                  <p><strong>Total de la reserva:</strong> S/ ${pricing.totalAmount.toFixed(2)}</p>
+                `
+            : `
+                  <p><strong>Total:</strong> S/ ${pricing.totalAmount.toFixed(2)}</p>
+                `
+
         // Mostrar confirmación
         MySwal.fire({
           icon: 'success',
@@ -411,7 +468,7 @@ const usePaymentFlow = (onComplete) => {
                   <p><strong>Cancha:</strong> ${selectedField?.name}</p>
                   <p><strong>Fecha:</strong> ${parseLocalDate(selectedDate).toLocaleDateString('es-PE')}</p>
                   <p><strong>Horarios:</strong> ${selectedTimeRanges.map((id) => timeRanges.find((tr) => tr.id === id)?.label).join(', ')}</p>
-                  <p><strong>Total:</strong> S/ ${pricing.totalAmount}</p>
+                  ${amountBlock}
                   <p><strong>Teléfono:</strong> ${phoneToUse}</p>
                   ${
                     isCashPayment
@@ -419,6 +476,16 @@ const usePaymentFlow = (onComplete) => {
                     <div class="mt-3 p-2 bg-yellow-100 rounded-lg">
                       <p class="text-yellow-800 font-medium">💵 PAGO PENDIENTE EN EFECTIVO</p>
                       <p class="text-xs text-yellow-700 mt-1">Paga al llegar a la cancha</p>
+                    </div>
+                  `
+                      : ''
+                  }
+                  ${
+                    advancePayment > 0 && !isCashPayment
+                      ? `
+                    <div class="mt-3 p-2 bg-amber-100 rounded-lg">
+                      <p class="text-amber-800 font-medium">💰 PAGASTE EL ADELANTO</p>
+                      <p class="text-xs text-amber-700 mt-1">El saldo restante se paga al llegar a la cancha</p>
                     </div>
                   `
                       : ''
@@ -494,9 +561,7 @@ const usePaymentFlow = (onComplete) => {
               })
             }
 
-            // Resetear y completar
-            resetBooking()
-            if (onComplete) onComplete()
+            // Modal padre y booking ya fueron limpiados antes de abrir el Swal.
             return
           }
 
@@ -511,23 +576,24 @@ const usePaymentFlow = (onComplete) => {
               timer: 2000,
               showConfirmButton: false,
               ...SWAL_CONFIG,
-            }).then(() => {
-              resetBooking()
-              if (onComplete) onComplete()
             })
-          } else {
-            resetBooking()
-            if (onComplete) onComplete()
           }
+          // Si se cierra con la X o ESC, no hacemos nada extra: el modal padre
+          // y el booking ya fueron limpiados antes de mostrar este Swal.
         })
       } else {
         throw new Error('Error al procesar la reserva')
       }
-    } catch (_error) {
+    } catch (error) {
+      // Mostrar el mensaje real del backend cuando exista (ej: validación de precio,
+      // cancha no disponible, etc.). Caer al mensaje genérico solo si no hay info útil.
+      console.error('❌ Error al crear reserva:', error)
+      const backendMessage = typeof error?.message === 'string' ? error.message.trim() : ''
+      const fallbackMessage = 'Hubo un problema al confirmar tu reserva. Intenta nuevamente.'
       MySwal.fire({
         icon: 'error',
         title: 'Error al procesar',
-        text: 'Hubo un problema al confirmar tu reserva. Intenta nuevamente.',
+        text: backendMessage || fallbackMessage,
         ...SWAL_CONFIG,
       })
     } finally {

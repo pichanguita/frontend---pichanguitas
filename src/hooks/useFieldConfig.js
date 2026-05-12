@@ -9,6 +9,7 @@ import {
 import { API_CONFIG, getToken } from '../config/api.config'
 import { fetchImagesByField, deleteFieldImageAPI } from '../services/fieldImages/fieldImagesService'
 import { fetchFieldConfig, updateFieldConfig } from '../services/fieldConfig'
+import useFieldStore from '../store/modules/fieldStore'
 
 const useFieldConfig = (field, isOpen, onClose, onSave) => {
   const [config, setConfig] = useState(INITIAL_CONFIG)
@@ -40,7 +41,10 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
               equipment: configData.equipment || {},
               cancellationPolicy:
                 configData.cancellationPolicy || INITIAL_CONFIG.cancellationPolicy,
-              requiresManualConfirmation: field.requiresManualConfirmation || false,
+              requiresManualConfirmation:
+                configData.requiresManualConfirmation ??
+                field.requiresManualConfirmation ??
+                false,
             }
           } catch (configError) {
             console.warn(
@@ -60,7 +64,7 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
               isActive: field.isActive !== undefined ? field.isActive : true,
               equipment: field.equipment || {},
               cancellationPolicy: field.cancellationPolicy || INITIAL_CONFIG.cancellationPolicy,
-              requiresManualConfirmation: field.requiresManualConfirmation || false,
+              requiresManualConfirmation: field.requiresManualConfirmation ?? false,
             }
           }
 
@@ -618,6 +622,16 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
       })
 
       await onSave(field.id, updatedField)
+
+      // Resincronizar canchas desde el backend para que el store refleje el
+      // status efectivo, los maintenanceSchedules (plural) reales y cualquier
+      // otra derivación que solo el backend conoce. Sin esto, la landing puede
+      // quedar viendo un snapshot stale del optimistic merge anterior.
+      try {
+        await useFieldStore.getState().loadFields()
+      } catch (refreshError) {
+        console.warn('No se pudo resincronizar canchas tras guardar config:', refreshError)
+      }
 
       Swal.fire({
         icon: 'success',

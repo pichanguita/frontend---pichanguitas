@@ -89,6 +89,8 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
     freeHoursToUse,
     setFreeHoursToUse,
     availableFreeHours,
+    selectedReservationSport,
+    setSelectedReservationSport,
   } = useBookingStore()
 
   // Obtener sportTypes directamente del fieldStore
@@ -181,6 +183,9 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
     setSelectedField(field)
     selectedTimeRanges.forEach((id) => toggleTimeRange(id))
     setConfirmationImageIndex(0)
+    // Reset del deporte específico al cambiar de cancha; se reinicializa al
+    // entrar al paso 3 con el primer deporte que ofrece la cancha elegida.
+    setSelectedReservationSport(null)
   }
 
   const handleFieldClick = (field) => {
@@ -290,6 +295,30 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
       updateAvailableFields()
     }
   }, [startTime, endTime, selectedDistrict, selectedSportTypes, selectedDate])
+
+  // Inicializar el deporte específico de la reserva al entrar al paso 3.
+  // - Canchas mono-deporte: se asigna automáticamente el único deporte (no se
+  //   muestra UI extra).
+  // - Canchas multi-deporte: pre-selecciona el primero (primera opción del
+  //   selector). El usuario puede cambiarlo en el ConfirmationPanel.
+  useEffect(() => {
+    if (currentStep !== 3 || !selectedFieldForReservation) return
+    if (selectedReservationSport != null) return
+
+    const fieldSports = Array.isArray(selectedFieldForReservation.sportTypes)
+      ? selectedFieldForReservation.sportTypes
+      : []
+    const firstSport =
+      fieldSports[0] ?? selectedFieldForReservation.sportType ?? null
+    if (firstSport != null) {
+      setSelectedReservationSport(firstSport)
+    }
+  }, [
+    currentStep,
+    selectedFieldForReservation,
+    selectedReservationSport,
+    setSelectedReservationSport,
+  ])
 
   // Auto-aplicar horas gratis cuando el cliente llega a la confirmación.
   // Si el cliente desactiva el toggle, su decisión persiste hasta que cambie de paso.
@@ -442,6 +471,9 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
                 availableFreeHours={availableFreeHours}
                 freeHoursToUse={freeHoursToUse}
                 onToggleFreeHours={(use) => setFreeHoursToUse(use ? availableFreeHours : 0)}
+                allSportTypes={sportTypes}
+                selectedReservationSport={selectedReservationSport}
+                onReservationSportChange={setSelectedReservationSport}
               />
             )}
           </div>

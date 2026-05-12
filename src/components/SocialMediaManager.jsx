@@ -59,6 +59,7 @@ const SocialMediaManager = () => {
     isPhone: false,
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isAdding, setIsAdding] = useState(false)
 
   // Cargar redes sociales al montar el componente
   useEffect(() => {
@@ -115,6 +116,9 @@ const SocialMediaManager = () => {
   }
 
   const handleAdd = async () => {
+    // Guard de re-entrancy: evita que múltiples clicks generen duplicados
+    if (isAdding) return
+
     if (!addForm.name || !addForm.url) {
       Swal.fire({
         icon: 'warning',
@@ -126,6 +130,7 @@ const SocialMediaManager = () => {
     }
 
     try {
+      setIsAdding(true)
       setIsLoading(true)
       await addSocialMedia(addForm)
       setAddForm({ name: '', url: '', icon: 'LinkIcon', color: '#22c55e', isPhone: false })
@@ -147,6 +152,7 @@ const SocialMediaManager = () => {
       })
     } finally {
       setIsLoading(false)
+      setIsAdding(false)
     }
   }
 
@@ -310,14 +316,16 @@ const SocialMediaManager = () => {
           <div className="mt-6 flex space-x-3">
             <button
               onClick={handleAdd}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+              disabled={isAdding}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
-              <span>Guardar</span>
+              <span>{isAdding ? 'Guardando...' : 'Guardar'}</span>
             </button>
             <button
               onClick={() => setShowAddForm(false)}
-              className="bg-secondary-200 hover:bg-secondary-300 text-secondary-700 px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={isAdding}
+              className="bg-secondary-200 hover:bg-secondary-300 text-secondary-700 px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>

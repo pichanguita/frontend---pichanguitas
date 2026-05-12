@@ -32,7 +32,7 @@ const ClientPanel = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false) // Modal de reserva
   const [promotionsBadge, setPromotionsBadge] = useState(0) // Badge de promociones
 
-  const { isAuthenticated, user, logout, checkSession, extendSession, isCustomer } = useAuthStore()
+  const { isAuthenticated, user, logout, checkSession, isCustomer } = useAuthStore()
 
   const {
     existingReservations,
@@ -136,49 +136,30 @@ const ClientPanel = () => {
 
   const stats = getUserStats()
 
-  // Refs para evitar re-renders en useEffect
-  const lastActivityRef = useRef(0)
+  // Validación periódica del JWT + al volver a la pestaña.
   const checkSessionRef = useRef(checkSession)
-  const extendSessionRef = useRef(extendSession)
-  const THROTTLE_INTERVAL = 60000 // Solo extender sesion cada 60 segundos
-
-  // Actualizar refs en cada render (sin useEffect)
   checkSessionRef.current = checkSession
-  extendSessionRef.current = extendSession
+  const SESSION_CHECK_INTERVAL_MS = 60000
 
   useEffect(() => {
     if (!isAuthenticated) return
 
-    // Verificar sesión al cargar
-    if (!checkSessionRef.current()) {
-      return
-    }
+    if (!checkSessionRef.current()) return
 
-    // Extender sesión con actividad (throttled)
-    const handleActivity = () => {
-      const now = Date.now()
-      if (now - lastActivityRef.current >= THROTTLE_INTERVAL) {
-        lastActivityRef.current = now
-        extendSessionRef.current()
+    const intervalId = setInterval(() => {
+      checkSessionRef.current()
+    }, SESSION_CHECK_INTERVAL_MS)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkSessionRef.current()
       }
     }
-
-    // Solo eventos que indican actividad real
-    const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'click']
-    events.forEach((event) => {
-      document.addEventListener(event, handleActivity, { passive: true })
-    })
-
-    // Auto-logout por inactividad
-    const inactivityTimer = setInterval(() => {
-      checkSessionRef.current()
-    }, 60000) // Verificar cada minuto
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      events.forEach((event) => {
-        document.removeEventListener(event, handleActivity)
-      })
-      clearInterval(inactivityTimer)
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [isAuthenticated])
 

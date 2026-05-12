@@ -10,8 +10,11 @@
  * @returns {number} - Precio total de la reserva
  */
 export const getReservationTotalPrice = (reservation, field = null) => {
-  if (reservation.totalPrice) {
-    return parseFloat(reservation.totalPrice)
+  // total_price = 0 es un caso válido (reserva 100% cubierta por horas gratis).
+  // No se debe confundir con "campo ausente": comparar contra null/undefined explícito.
+  const stored = reservation.totalPrice ?? reservation.total_price
+  if (stored !== null && stored !== undefined) {
+    return parseFloat(stored) || 0
   }
 
   const pricePerHour = field?.pricePerHour ? parseFloat(field.pricePerHour) : 0
@@ -35,14 +38,22 @@ export const getReservationRevenue = (reservation, field = null) => {
     return totalPrice
   }
 
-  // No se presentó: solo el adelanto fue recibido
+  // No se presentó: el adelanto fue recibido, pero si se procesó un reembolso
+  // el ingreso neto es lo que el admin retuvo (advance - refund).
   if (paymentStatus === 'no_show') {
-    return reservation.advancePayment ? parseFloat(reservation.advancePayment) : 0
+    const advance = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
+    const refundStatus = reservation.refundStatus ?? reservation.refund_status
+    if (refundStatus === 'processed') {
+      const refundAmount =
+        parseFloat(reservation.refundAmount ?? reservation.refund_amount ?? 0) || 0
+      return Math.max(advance - refundAmount, 0)
+    }
+    return advance
   }
 
   // Pagado parcialmente - usar lo que ya pagó
   if (paymentStatus === 'partial' || paymentStatus === 'partially_paid') {
-    return reservation.advancePayment ? parseFloat(reservation.advancePayment) : 0
+    return parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
   }
 
   // No pagado

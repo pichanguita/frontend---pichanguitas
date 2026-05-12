@@ -167,9 +167,9 @@ export const canCancelReservation = (reservation, cancellationPolicy = null) => 
   }
 
   // Pago ya aprobado/verificado por el admin
-  // Solo bloquear si paymentStatus es explícitamente 'fully_paid'
+  // Bloquear si paymentStatus es 'fully_paid' o 'paid' (sinónimos en el sistema).
   const paymentStatus = reservation.paymentStatus || reservation.payment_status
-  if (paymentStatus === 'fully_paid') {
+  if (paymentStatus === 'fully_paid' || paymentStatus === 'paid') {
     return {
       canCancel: false,
       reason:

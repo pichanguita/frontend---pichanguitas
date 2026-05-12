@@ -14,33 +14,34 @@ export const ADVANCE_PERCENTAGE = 30 // 30% de adelanto requerido
  * NOTA: subtotal es el precio ANTES de descuentos, total_price es el precio FINAL
  */
 export const calculateAmounts = (reservation, fields) => {
-  // Usar total_price como fuente principal (precio final después de descuentos)
-  // Esto es crucial para reservas con horas gratis donde subtotal=100 pero total_price=0
-  const total =
-    parseFloat(reservation.totalPrice) ??
-    parseFloat(reservation.total_price) ??
-    parseFloat(reservation.subtotal) ??
-    0
-  const advance = parseFloat(reservation.advancePayment || reservation.advance_payment) || 0
-  const pending = parseFloat(reservation.remainingPayment || reservation.remaining_payment) || 0
+  // total_price es la fuente única de verdad (precio FINAL después de descuentos).
+  // Aplicar `??` ANTES de parseFloat: total_price = 0 (reserva 100% por horas gratis)
+  // es válido y no debe caer al fallback bruto.
+  const totalRaw = reservation.totalPrice ?? reservation.total_price
+  const advance = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
+  const pending = parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
-  // Si no hay datos de la BD, calcular como fallback
-  if (total === 0 && fields) {
-    const fieldId = reservation.fieldId || reservation.field_id
-    const field = fields.find((f) => f.id === fieldId)
-    if (field) {
-      const calculatedTotal = parseFloat(field.pricePerHour) * parseFloat(reservation.hours || 1)
-      const calculatedAdvance = calculatedTotal * (ADVANCE_PERCENTAGE / 100)
-      const calculatedPending = calculatedTotal - calculatedAdvance
-      return {
-        total: calculatedTotal,
-        advance: calculatedAdvance,
-        pending: calculatedPending,
+  // Fallback solo si total_price está REALMENTE ausente (legado sin migrar).
+  // total_price = 0 NO es ausencia, es cero legítimo (horas gratis cubrieron todo).
+  if (totalRaw === null || totalRaw === undefined) {
+    if (fields) {
+      const fieldId = reservation.fieldId || reservation.field_id
+      const field = fields.find((f) => f.id === fieldId)
+      if (field) {
+        const calculatedTotal = parseFloat(field.pricePerHour) * parseFloat(reservation.hours || 1)
+        const calculatedAdvance = calculatedTotal * (ADVANCE_PERCENTAGE / 100)
+        const calculatedPending = calculatedTotal - calculatedAdvance
+        return {
+          total: calculatedTotal,
+          advance: calculatedAdvance,
+          pending: calculatedPending,
+        }
       }
     }
+    return { total: 0, advance, pending }
   }
 
-  return { total, advance, pending }
+  return { total: parseFloat(totalRaw) || 0, advance, pending }
 }
 
 /**
@@ -151,18 +152,20 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
   }
 
   existingReservations.forEach((reservation) => {
-    // Usar total_price como fuente principal (precio final después de descuentos)
-    // Esto es crucial para reservas con horas gratis donde subtotal=100 pero total_price=0
-    const totalPrice =
-      parseFloat(reservation.totalPrice) ??
-      parseFloat(reservation.total_price) ??
-      parseFloat(reservation.subtotal) ??
-      0
-    const advancePaid = parseFloat(reservation.advancePayment || reservation.advance_payment) || 0
+    // total_price es la fuente única de verdad (precio FINAL después de descuentos).
+    // Si el campo está REALMENTE ausente, caer a 0; total_price = 0 es válido
+    // (reserva 100% cubierta por horas gratis) y debe procesarse normalmente.
+    const totalRaw = reservation.totalPrice ?? reservation.total_price ?? 0
+    const totalPrice = parseFloat(totalRaw) || 0
+    const advancePaid = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
     const pendingAmount =
-      parseFloat(reservation.remainingPayment || reservation.remaining_payment) || 0
+      parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
-    if (totalPrice === 0) {
+    // Las reservas pagadas 100% con horas gratis (totalPrice = 0, status = paid)
+    // deben contarse en completedCount pero sin sumar al totalCollected.
+    // El procesamiento normal más abajo ya hace eso (suma 0).
+    // Solo saltamos si NO hay status definido (registro corrupto).
+    if (totalPrice === 0 && !reservation.status && !reservation.payment_status) {
       return
     }
 
@@ -209,9 +212,24 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
       stats.totalCollected += totalPrice
       stats.completedCount++
     } else if (paymentStatus === 'no_show') {
-      stats.totalCollected += advancePaid
       stats.noShowCount++
-      stats.noShowRevenue += advancePaid
+
+      // Si se procesó un reembolso del adelanto, descontarlo del ingreso neto.
+      // Mismo patrón que la rama 'cancelled' arriba.
+      const refundAmount = parseFloat(reservation.refundAmount || reservation.refund_amount) || 0
+      const refundStatus = reservation.refundStatus || reservation.refund_status
+
+      if (refundAmount > 0 && refundStatus === 'processed') {
+        stats.totalRefunded += refundAmount
+        stats.refundedCount++
+        const netIncome = advancePaid - refundAmount
+        const safeNet = netIncome > 0 ? netIncome : 0
+        stats.totalCollected += safeNet
+        stats.noShowRevenue += safeNet
+      } else {
+        stats.totalCollected += advancePaid
+        stats.noShowRevenue += advancePaid
+      }
     } else if (paymentStatus === 'partially_paid' || paymentStatus === 'partial') {
       stats.totalCollected += advancePaid
       stats.totalPending += pendingAmount
