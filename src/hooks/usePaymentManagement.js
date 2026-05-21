@@ -5,7 +5,6 @@ import useFieldStore from '../store/modules/fieldStore'
 import useAuthStore from '../store/authStore'
 import { API_CONFIG, getAuthHeaders } from '../config/api.config'
 import {
-  ADVANCE_PERCENTAGE,
   calculatePaymentStats,
   filterReservations,
   calculateAmounts,
@@ -108,6 +107,7 @@ const usePaymentManagement = () => {
     const fieldName = field?.name || reservation.fieldName || reservation.field_name || 'N/A'
     const customerName = reservation.customerName || reservation.customer_name || 'N/A'
     const advancePercentage = totalPrice > 0 ? Math.round((advancePaid / totalPrice) * 100) : 0
+    const hasAdvance = advancePaid > 0
 
     Swal.fire({
       title: 'Cliente No Se Presentó',
@@ -119,10 +119,13 @@ const usePaymentManagement = () => {
           <p class="mb-3"><strong>Hora:</strong> ${reservation.time || 'N/A'}</p>
           <hr class="my-3">
           <div class="bg-amber-50 p-3 rounded-lg mb-3">
-            <p class="mb-2 text-sm"><strong>Adelanto Pagado (${advancePercentage}%):</strong> <span class="text-green-600">S/ ${advancePaid.toFixed(2)}</span></p>
+            <p class="mb-2 text-sm"><strong>Adelanto Pagado${hasAdvance ? ` (${advancePercentage}%)` : ''}:</strong> <span class="${hasAdvance ? 'text-green-600' : 'text-gray-600'}">S/ ${advancePaid.toFixed(2)}</span></p>
             <p class="text-sm"><strong>Monto No Cobrado:</strong> <span class="text-red-600">S/ ${pendingAmount.toFixed(2)}</span></p>
           </div>
 
+          ${
+            hasAdvance
+              ? `
           <div class="bg-blue-50 p-4 rounded-lg mb-3">
             <p class="font-medium text-blue-900 mb-3">¿Qué hacer con el adelanto?</p>
             <div class="space-y-2">
@@ -142,6 +145,13 @@ const usePaymentManagement = () => {
               </label>
             </div>
           </div>
+          `
+              : `
+          <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-3">
+            <p class="text-sm text-gray-700">Esta reserva no tiene adelanto registrado, por lo que no hay monto que retener ni devolver.</p>
+          </div>
+          `
+          }
         </div>
       `,
       icon: 'warning',
@@ -154,7 +164,10 @@ const usePaymentManagement = () => {
       allowEscapeKey: true,
       width: '550px',
       preConfirm: () => {
-        const refundOption = document.querySelector('input[name="refundOption"]:checked').value
+        if (!hasAdvance) {
+          return { shouldRefund: false }
+        }
+        const refundOption = document.querySelector('input[name="refundOption"]:checked')?.value
         return { shouldRefund: refundOption === 'refund' }
       },
     }).then(async (result) => {
@@ -200,9 +213,16 @@ const usePaymentManagement = () => {
                       <p class="text-sm text-red-600 mt-2">✗ Ingreso total no percibido: S/ ${totalPrice.toFixed(2)}</p>
                     </div>
                   `
-                    : `
+                    : advancePaid > 0
+                      ? `
                     <div class="bg-amber-50 p-3 rounded-lg">
                       <p class="text-sm text-green-600">✓ Adelanto retenido: S/ ${advancePaid.toFixed(2)}</p>
+                      <p class="text-sm text-red-600">✗ Ingreso no percibido: S/ ${pendingAmount.toFixed(2)}</p>
+                    </div>
+                  `
+                      : `
+                    <div class="bg-amber-50 p-3 rounded-lg">
+                      <p class="text-sm text-gray-700">Sin adelanto registrado para esta reserva.</p>
                       <p class="text-sm text-red-600">✗ Ingreso no percibido: S/ ${pendingAmount.toFixed(2)}</p>
                     </div>
                   `
@@ -379,7 +399,6 @@ const usePaymentManagement = () => {
     handleCompletePayment,
 
     // Utilidades
-    ADVANCE_PERCENTAGE,
     calculateAmounts: (reservation) => calculateAmounts(reservation, fields),
     canRegisterPayment: (reservation) => checkCanRegisterPayment(reservation, currentTime),
   }

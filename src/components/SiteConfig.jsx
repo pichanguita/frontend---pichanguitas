@@ -17,7 +17,6 @@ const SiteConfig = () => {
     handleVideoChange,
     saveVideo,
     saveAllVideos,
-    handleReset,
     openVideoPreview,
     closeVideoPreview,
   } = useSiteConfig(configStore)
@@ -41,7 +40,6 @@ const SiteConfig = () => {
             onVideoChange={handleVideoChange}
             onSaveVideo={saveVideo}
             onSaveAllVideos={saveAllVideos}
-            onReset={handleReset}
             onPreview={openVideoPreview}
           />
         )}

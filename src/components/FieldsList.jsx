@@ -1,21 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import {
-  MapPin,
-  Clock,
-  Activity,
-  ChevronRight,
-  Users,
-  Shield,
-  Car,
-  Wifi,
-  Star,
-  Droplet,
-  Lightbulb,
-} from 'lucide-react'
+import { MapPin, Clock, Activity, ChevronRight, Users, Star } from 'lucide-react'
 import { motion } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
 import useAuthStore from '../store/authStore'
 import { parseLocalDate } from '../utils/dateFormatters'
+import { getMainAmenities } from '../utils/bookingHelpers'
+import { getAmenityIconComponent } from '../utils/amenityIconRegistry'
 
 const FieldsList = ({ onFieldSelect }) => {
   const {
@@ -103,58 +93,6 @@ const FieldsList = ({ onFieldSelect }) => {
     return sport?.name || 'Deporte'
   }
 
-  const getAmenityIcon = (amenity) => {
-    const icons = {
-      Estacionamiento: Car,
-      Iluminación: '💡',
-      Vestuarios: '🚿',
-      'Césped sintético': '🌱',
-      Tribunas: '🪑',
-      Cafetería: '☕',
-      WiFi: Wifi,
-      Seguridad: Shield,
-      Árbitro: '🏃',
-    }
-    return icons[amenity] || '✓'
-  }
-
-  // Mapear amenidades a íconos para mostrar en la imagen
-  const getAmenityIconForImage = (amenity) => {
-    const normalizedAmenity = amenity.toLowerCase()
-
-    if (normalizedAmenity.includes('estacionamiento') || normalizedAmenity.includes('parking')) {
-      return { Icon: Car, color: 'bg-blue-600', label: 'Estacionamiento' }
-    }
-    if (normalizedAmenity.includes('wifi')) {
-      return { Icon: Wifi, color: 'bg-purple-600', label: 'WiFi' }
-    }
-    if (normalizedAmenity.includes('vestuario')) {
-      return { Icon: Droplet, color: 'bg-cyan-600', label: 'Vestuarios' }
-    }
-    if (normalizedAmenity.includes('ducha')) {
-      return { Icon: Droplet, color: 'bg-teal-600', label: 'Duchas' }
-    }
-    if (normalizedAmenity.includes('seguridad')) {
-      return { Icon: Shield, color: 'bg-red-600', label: 'Seguridad' }
-    }
-    if (normalizedAmenity.includes('iluminación') || normalizedAmenity.includes('led')) {
-      return { Icon: Lightbulb, color: 'bg-yellow-500', label: 'Iluminación' }
-    }
-
-    return null
-  }
-
-  // Obtener los principales servicios visuales de una cancha
-  const getMainAmenities = (field) => {
-    if (!field.amenities || !Array.isArray(field.amenities)) return []
-
-    const amenitiesWithIcons = field.amenities
-      .map((amenity) => getAmenityIconForImage(amenity))
-      .filter((item) => item !== null)
-      .slice(0, 4) // Máximo 4 íconos
-
-    return amenitiesWithIcons
-  }
 
   const formatDate = (date) => {
     return parseLocalDate(date).toLocaleDateString('es-PE', {
@@ -337,19 +275,15 @@ const FieldsList = ({ onFieldSelect }) => {
                           {/* Comodidades */}
                           {field.amenities && field.amenities.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-4">
-                              {field.amenities.slice(0, 4).map((amenity, idx) => {
-                                const Icon = getAmenityIcon(amenity)
+                              {field.amenities.slice(0, 4).map((amenity) => {
+                                const Icon = getAmenityIconComponent(amenity.icon_name)
                                 return (
                                   <span
-                                    key={idx}
+                                    key={amenity.key}
                                     className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full"
                                   >
-                                    {typeof Icon === 'string' ? (
-                                      <span>{Icon}</span>
-                                    ) : (
-                                      <Icon className="w-3 h-3" />
-                                    )}
-                                    {amenity}
+                                    <Icon className="w-3 h-3" />
+                                    {amenity.label}
                                   </span>
                                 )
                               })}

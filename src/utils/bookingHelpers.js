@@ -1,51 +1,25 @@
-import { Car, Wifi, Droplet, Shield, Lightbulb } from 'lucide-react'
 import { getToday } from './dateFormatters'
+import { getAmenityIconComponent } from './amenityIconRegistry'
 
 /**
- * Obtiene el ícono y color según el tipo de amenidad
- * @param {string} amenity - Nombre de la amenidad
- * @returns {Object|null} Objeto con Icon, color y label, o null si no se encuentra
- */
-export const getAmenityIcon = (amenity) => {
-  const normalizedAmenity = amenity.toLowerCase()
-
-  if (normalizedAmenity.includes('estacionamiento') || normalizedAmenity.includes('parking')) {
-    return { Icon: Car, color: 'bg-blue-600', label: 'Estacionamiento' }
-  }
-  if (normalizedAmenity.includes('wifi')) {
-    return { Icon: Wifi, color: 'bg-purple-600', label: 'WiFi' }
-  }
-  if (normalizedAmenity.includes('ducha') || normalizedAmenity.includes('vestuario')) {
-    return { Icon: Droplet, color: 'bg-cyan-600', label: 'Duchas/Vestuarios' }
-  }
-  if (normalizedAmenity.includes('seguridad') || normalizedAmenity.includes('vigilancia')) {
-    return { Icon: Shield, color: 'bg-red-600', label: 'Seguridad' }
-  }
-  if (
-    normalizedAmenity.includes('iluminación') ||
-    normalizedAmenity.includes('luz') ||
-    normalizedAmenity.includes('led')
-  ) {
-    return { Icon: Lightbulb, color: 'bg-yellow-500', label: 'Iluminación' }
-  }
-
-  return null
-}
-
-/**
- * Obtiene las principales amenidades de un campo con sus iconos
- * @param {Object} field - Campo con amenidades
- * @returns {Array} Array de objetos con Icon, color y label
+ * Mapea el array `field.amenities` (objetos {key,label,icon_name,color_class}
+ * provenientes del backend joined con amenities_catalog) a un array listo para
+ * renderizar como íconos: {Icon, color, label, key}.
+ *
+ * Sin hardcoding de labels ni íconos: todo viene del catálogo.
+ * Limita a 6 entradas para no saturar la UI del cliente.
  */
 export const getMainAmenities = (field) => {
-  if (!field.amenities || !Array.isArray(field.amenities)) return []
-
-  const amenitiesWithIcons = field.amenities
-    .map((amenity) => getAmenityIcon(amenity))
-    .filter((item) => item !== null)
-    .slice(0, 6) // Mostrar hasta 6 amenidades
-
-  return amenitiesWithIcons
+  if (!field?.amenities || !Array.isArray(field.amenities)) return []
+  return field.amenities
+    .filter((a) => a && a.key && a.label)
+    .slice(0, 6)
+    .map((a) => ({
+      key: a.key,
+      label: a.label,
+      color: a.color_class,
+      Icon: getAmenityIconComponent(a.icon_name),
+    }))
 }
 
 /**
@@ -71,34 +45,34 @@ export const calculateSelectedTimeRanges = (startTime, endTime, timeRanges) => {
 }
 
 /**
- * Verifica si hay conflicto de horario entre una reserva y un rango horario
- * @param {Object} reservation - Reserva existente
- * @param {Object} timeRange - Rango horario a verificar
+ * Normaliza un string horario a formato canónico "HH:MM" (5 chars).
+ * PostgreSQL TIME(6) devuelve "HH:MM:SS" via node-postgres; los slots de
+ * UI usan "HH:MM". Sin esta normalización, comparaciones lexicográficas
+ * tipo "13:00:00" > "13:00" devuelven true incorrectamente.
+ */
+const normalizeTime = (value) => {
+  if (typeof value !== 'string') return ''
+  return value.slice(0, 5)
+}
+
+/**
+ * Verifica si hay conflicto de horario entre una reserva y un rango horario.
+ * Fórmula: hay conflicto si `resStart < slotEnd` AND `resEnd > slotStart`
+ * (intervalos abiertos en los extremos: 12:00-13:00 NO colisiona con 13:00-14:00).
+ *
+ * @param {Object} reservation - Reserva existente (startTime/endTime o start_time/end_time)
+ * @param {Object} timeRange - Slot a verificar { startTime, endTime } en HH:MM
  * @returns {boolean} true si hay conflicto
  */
 const hasTimeConflict = (reservation, timeRange) => {
-  // Obtener hora inicio/fin de la reserva
-  const resStartTime = reservation.startTime || reservation.start_time
-  const resEndTime = reservation.endTime || reservation.end_time
+  const resStartTime = normalizeTime(reservation.startTime || reservation.start_time)
+  const resEndTime = normalizeTime(reservation.endTime || reservation.end_time)
+  const slotStart = normalizeTime(timeRange.startTime)
+  const slotEnd = normalizeTime(timeRange.endTime)
 
-  if (resStartTime && resEndTime) {
-    // Comparar directamente los tiempos
-    // Hay conflicto si: resStart < slotEnd AND resEnd > slotStart
-    return resStartTime < timeRange.endTime && resEndTime > timeRange.startTime
-  }
+  if (!resStartTime || !resEndTime || !slotStart || !slotEnd) return false
 
-  // Fallback: comparar con el campo `time`
-  if (reservation.time) {
-    // El formato puede ser "HH:MM - HH:MM" o "HH:MM-HH:MM"
-    const timeFormats = [
-      `${timeRange.startTime} - ${timeRange.endTime}`,
-      `${timeRange.startTime}-${timeRange.endTime}`,
-      `${timeRange.startTime}:00 - ${timeRange.endTime}:00`,
-    ]
-    return timeFormats.some((format) => reservation.time === format)
-  }
-
-  return false
+  return resStartTime < slotEnd && resEndTime > slotStart
 }
 
 /**

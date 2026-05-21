@@ -803,12 +803,12 @@ const UsersManagementModule = () => {
                             <div className="mb-4">
                               <p className="text-xs text-secondary-500 mb-2">Servicios</p>
                               <div className="flex flex-wrap gap-1">
-                                {field.amenities.slice(0, 6).map((amenity, idx) => (
+                                {field.amenities.slice(0, 6).map((amenity) => (
                                   <span
-                                    key={idx}
+                                    key={amenity.key}
                                     className="px-2 py-1 bg-primary-50 text-primary-700 text-xs rounded-full"
                                   >
-                                    {amenity.name || amenity}
+                                    {amenity.label}
                                   </span>
                                 ))}
                                 {field.amenities.length > 6 && (

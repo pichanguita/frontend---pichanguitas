@@ -12,33 +12,26 @@ import {
 } from 'lucide-react'
 
 /**
- * Componente que muestra las tarjetas de estadísticas de pagos
+ * Componente que muestra las tarjetas de estadísticas de pagos.
+ * El monto del adelanto es por-cancha (fields.advance_payment_amount),
+ * no se muestra un porcentaje global.
  */
-const PaymentStatsCards = ({ paymentStats, ADVANCE_PERCENTAGE }) => {
+const PaymentStatsCards = ({ paymentStats }) => {
   return (
     <div className="bg-white rounded-xl shadow-custom p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-secondary-900 flex items-center gap-2">
-            <DollarSign className="w-7 h-7 text-primary-600" />
-            Gestión de Pagos
-          </h2>
-          <p className="text-secondary-600 mt-1">
-            Administra los pagos pendientes y completados de las reservas
-          </p>
-          <div className="flex items-center gap-2 mt-2 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-flex">
-            <Clock className="w-3.5 h-3.5" />
-            <span>
-              Los pagos solo se pueden registrar el día de la reserva, a partir de su hora de inicio
-            </span>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="bg-amber-100 px-4 py-2 rounded-lg">
-            <p className="text-sm font-medium text-amber-800">
-              Adelanto requerido: {ADVANCE_PERCENTAGE}%
-            </p>
-          </div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-secondary-900 flex items-center gap-2">
+          <DollarSign className="w-7 h-7 text-primary-600" />
+          Gestión de Pagos
+        </h2>
+        <p className="text-secondary-600 mt-1">
+          Administra los pagos pendientes y completados de las reservas
+        </p>
+        <div className="flex items-center gap-2 mt-2 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-flex">
+          <Clock className="w-3.5 h-3.5" />
+          <span>
+            Los pagos solo se pueden registrar el día de la reserva, a partir de su hora de inicio
+          </span>
         </div>
       </div>
 

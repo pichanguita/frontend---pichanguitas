@@ -1,32 +1,36 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { PlayCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
-import useConfigStore from '../store/configStore'
+import useVideoTutorialsStore from '../store/videoTutorialsStore'
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.2 },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: 'easeOut' },
+  },
+}
 
 const VideoTutorials = () => {
-  const { videos } = useConfigStore()
+  const { videos, loadVideos } = useVideoTutorialsStore()
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-      },
-    },
-  }
+  useEffect(() => {
+    loadVideos()
+  }, [loadVideos])
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-      },
-    },
-  }
+  // Solo renderiza tutoriales con URL definida (evita iframes vacíos)
+  const renderable = videos.filter((v) => v.video_url && v.video_url.trim() !== '')
+
+  if (renderable.length === 0) return null
 
   return (
     <section className="py-12 sm:py-16 bg-white">
@@ -45,63 +49,34 @@ const VideoTutorials = () => {
           </motion.h2>
 
           <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
-            {/* Video 1: Cómo reservar una cancha */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden border border-secondary-100 hover:shadow-2xl transition-shadow duration-300"
-            >
-              <div className="aspect-video relative bg-secondary-100">
-                <iframe
-                  src={videos.tutorialReserva.url}
-                  title={videos.tutorialReserva.title}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="bg-primary-100 p-2 rounded-lg">
-                    <PlayCircle className="w-5 h-5 text-primary-600" />
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-secondary-900">
-                    {videos.tutorialReserva.title}
-                  </h3>
+            {renderable.map((video) => (
+              <motion.div
+                key={video.slug}
+                variants={itemVariants}
+                className="bg-white rounded-2xl shadow-lg overflow-hidden border border-secondary-100 hover:shadow-2xl transition-shadow duration-300"
+              >
+                <div className="aspect-video relative bg-secondary-100">
+                  <iframe
+                    src={video.video_url}
+                    title={video.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
                 </div>
-                <p className="text-sm sm:text-base text-secondary-600">
-                  {videos.tutorialReserva.description}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Video 2: Cómo registrarse como admin */}
-            <motion.div
-              variants={itemVariants}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden border border-secondary-100 hover:shadow-2xl transition-shadow duration-300"
-            >
-              <div className="aspect-video relative bg-secondary-100">
-                <iframe
-                  src={videos.tutorialAdmin.url}
-                  title={videos.tutorialAdmin.title}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="bg-primary-100 p-2 rounded-lg">
-                    <PlayCircle className="w-5 h-5 text-primary-600" />
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="bg-primary-100 p-2 rounded-lg">
+                      <PlayCircle className="w-5 h-5 text-primary-600" />
+                    </div>
+                    <h3 className="text-lg sm:text-xl font-bold text-secondary-900">
+                      {video.title}
+                    </h3>
                   </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-secondary-900">
-                    {videos.tutorialAdmin.title}
-                  </h3>
+                  <p className="text-sm sm:text-base text-secondary-600">{video.description}</p>
                 </div>
-                <p className="text-sm sm:text-base text-secondary-600">
-                  {videos.tutorialAdmin.description}
-                </p>
-              </div>
-            </motion.div>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
       </div>

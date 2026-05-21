@@ -1,11 +1,6 @@
 // Funciones helper para el formulario de Nueva Cancha
 
-import {
-  INITIAL_FORM_DATA,
-  DEFAULT_SCHEDULE,
-  DEFAULT_RULES,
-  SERVICE_TO_AMENITY_MAP,
-} from './fieldConstants'
+import { INITIAL_FORM_DATA, DEFAULT_SCHEDULE, DEFAULT_RULES } from './fieldConstants'
 import { FIELD_APPROVAL_STATUS } from '../../../constants/fieldStatus'
 
 /**
@@ -34,32 +29,6 @@ export const generateFieldId = () => {
  */
 export const generateDistrictId = (distrito) => {
   return distrito.toLowerCase().replace(/\s+/g, '')
-}
-
-/**
- * Construye el array de amenities basado en los servicios seleccionados
- * @param {Object} formData - Datos del formulario
- * @returns {Array} Array de amenities como strings
- */
-export const buildAmenities = (formData) => {
-  const amenities = []
-
-  // Agregar tipo de superficie
-  if (formData.dimensions.surfaceType === 'cesped_sintetico') {
-    amenities.push(SERVICE_TO_AMENITY_MAP.cesped_sintetico)
-  }
-  if (formData.dimensions.surfaceType === 'cesped_natural') {
-    amenities.push(SERVICE_TO_AMENITY_MAP.cesped_natural)
-  }
-
-  // Agregar servicios seleccionados
-  Object.entries(formData.services).forEach(([key, value]) => {
-    if (value && SERVICE_TO_AMENITY_MAP[key]) {
-      amenities.push(SERVICE_TO_AMENITY_MAP[key])
-    }
-  })
-
-  return amenities.length > 0 ? amenities : ['Cancha deportiva']
 }
 
 /**
@@ -111,7 +80,7 @@ export const buildFieldObject = (
   user = null,
   availableSports = []
 ) => {
-  const amenities = buildAmenities(formData)
+  const amenities = Array.isArray(formData.amenityKeys) ? formData.amenityKeys : []
   const area = parseFloat(formData.dimensions.area) || 0
 
   // Todas las canchas inician como pendientes.
@@ -182,10 +151,8 @@ export const buildFieldObject = (
       area: formData.dimensions.area || null,
       surfaceType: formData.dimensions.surfaceType,
     },
-    // Servicios y equipamiento
-    services: formData.services,
+    // Equipamiento
     equipment: equipmentData,
-    barDetails: formData.barDetails,
     // Horarios y configuración
     schedule: DEFAULT_SCHEDULE,
     maintenanceSchedule: [],

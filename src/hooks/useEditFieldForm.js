@@ -9,67 +9,13 @@ import {
 import { formatPhone } from '../components/NewFieldModal/utils/fieldValidators'
 import useFieldStore from '../store/modules/fieldStore'
 
-// Mapeo inverso de amenity a service (para precargar servicios desde amenities)
-const AMENITY_TO_SERVICE_MAP = {
-  Bar: 'hasBar',
-  'Venta de bebidas': 'hasDrinks',
-  'Venta de snacks': 'hasSnacks',
-  Estacionamiento: 'hasParking',
-  Vestuarios: 'hasChangingRooms',
-  Duchas: 'hasShowers',
-  WiFi: 'hasWifi',
-  Seguridad: 'hasSecurity',
-  'Primeros auxilios': 'hasFirstAid',
-}
-
-// Mapeo inverso: de service a amenity (para enviar al backend)
-const SERVICE_TO_AMENITY_MAP = {
-  hasBar: 'Bar',
-  hasDrinks: 'Venta de bebidas',
-  hasSnacks: 'Venta de snacks',
-  hasParking: 'Estacionamiento',
-  hasChangingRooms: 'Vestuarios',
-  hasShowers: 'Duchas',
-  hasWifi: 'WiFi',
-  hasSecurity: 'Seguridad',
-  hasFirstAid: 'Primeros auxilios',
-}
-
-// Convierte objeto de services a array de amenities (para enviar al backend)
-const servicesToAmenities = (services = {}) => {
-  const amenities = []
-  Object.entries(services).forEach(([key, value]) => {
-    if (value && SERVICE_TO_AMENITY_MAP[key]) {
-      amenities.push(SERVICE_TO_AMENITY_MAP[key])
-    }
-  })
+// Normaliza el array `field.amenities` (que viene como objetos del backend)
+// a un array de keys del catálogo. Tolera arrays vacíos o legacy de strings.
+const amenitiesToKeys = (amenities = []) => {
+  if (!Array.isArray(amenities)) return []
   return amenities
-}
-
-// Convierte array de amenities a objeto de services
-const amenitiestoServices = (amenities = []) => {
-  const services = {
-    hasBar: false,
-    hasDrinks: false,
-    hasSnacks: false,
-    hasParking: false,
-    hasChangingRooms: false,
-    hasShowers: false,
-    hasWifi: false,
-    hasSecurity: false,
-    hasFirstAid: false,
-  }
-
-  if (Array.isArray(amenities)) {
-    amenities.forEach((amenity) => {
-      const serviceKey = AMENITY_TO_SERVICE_MAP[amenity]
-      if (serviceKey) {
-        services[serviceKey] = true
-      }
-    })
-  }
-
-  return services
+    .map((a) => (typeof a === 'string' ? a : a?.key))
+    .filter(Boolean)
 }
 
 // Extrae el valor numérico puro de un string que puede contener sufijos de unidad (ej: "100m" → "100")
@@ -113,18 +59,8 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
       surfaceType: 'cesped_sintetico',
     },
 
-    // Servicios
-    services: {
-      hasBar: false,
-      hasDrinks: false,
-      hasSnacks: false,
-      hasParking: false,
-      hasChangingRooms: false,
-      hasShowers: false,
-      hasWifi: false,
-      hasSecurity: false,
-      hasFirstAid: false,
-    },
+    // Servicios/Comodidades — keys del catálogo (amenities_catalog.key)
+    amenityKeys: [],
 
     // Equipamiento
     equipment: {
@@ -134,11 +70,6 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
       ballPrice: '',
       hasConeRental: false,
       conePrice: '',
-    },
-
-    // Detalles de bar
-    barDetails: {
-      openDuringGames: false,
     },
   })
 
@@ -264,10 +195,18 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
 
           // Precios y configuración
           pricePerHour: field.price_per_hour?.toString() || field.pricePerHour?.toString() || '',
-          advancePaymentAmount:
-            field.advance_payment_amount?.toString() ||
-            field.advancePaymentAmount?.toString() ||
-            '',
+          // El campo "Adelanto para Separar" es opcional: si la BD tiene 0 (valor por
+          // defecto cuando el admin nunca lo configuró) y no se exige pago adelantado,
+          // se muestra vacío en lugar de "0" para que se note que es opcional.
+          advancePaymentAmount: (() => {
+            const raw = field.advance_payment_amount ?? field.advancePaymentAmount
+            if (raw === null || raw === undefined || raw === '') return ''
+            const num = parseFloat(raw)
+            const requiresAdvance =
+              field.requires_advance_payment ?? field.requiresAdvancePayment ?? false
+            if (!requiresAdvance && (isNaN(num) || num === 0)) return ''
+            return raw.toString()
+          })(),
           requiresAdvancePayment:
             field.requires_advance_payment || field.requiresAdvancePayment || false,
           status: field.status || 'available',
@@ -303,26 +242,8 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
             surfaceType: field.dimensions?.surfaceType || 'cesped_sintetico',
           },
 
-          // Servicios - Convertir amenities del backend a formato de services
-          services: (() => {
-            // Priorizar amenities del backend (viene como array de strings)
-            const amenities = field.amenities || []
-            if (amenities.length > 0) {
-              return amenitiestoServices(amenities)
-            }
-            // Fallback al formato services si existe
-            return {
-              hasBar: field.services?.hasBar || false,
-              hasDrinks: field.services?.hasDrinks || false,
-              hasSnacks: field.services?.hasSnacks || false,
-              hasParking: field.services?.hasParking || false,
-              hasChangingRooms: field.services?.hasChangingRooms || false,
-              hasShowers: field.services?.hasShowers || false,
-              hasWifi: field.services?.hasWifi || false,
-              hasSecurity: field.services?.hasSecurity || false,
-              hasFirstAid: field.services?.hasFirstAid || false,
-            }
-          })(),
+          // Servicios/Comodidades — keys del catálogo
+          amenityKeys: amenitiesToKeys(field.amenities),
 
           // Equipamiento
           equipment: {
@@ -332,11 +253,6 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
             ballPrice: field.equipment?.ballPrice?.toString() || '',
             hasConeRental: field.equipment?.hasConeRental || false,
             conePrice: field.equipment?.conePrice?.toString() || '',
-          },
-
-          // Detalles de bar
-          barDetails: {
-            openDuringGames: field.barDetails?.openDuringGames || false,
           },
         })
 
@@ -352,7 +268,7 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
 
-    // Manejar campos anidados (ej: dimensions.length, services.hasBar)
+    // Manejar campos anidados (ej: dimensions.length, equipment.hasJerseyRental)
     if (name.includes('.')) {
       const [parent, child] = name.split('.')
       setFormData((prev) => ({
@@ -791,8 +707,8 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
           surface_type: formData.dimensions.surfaceType || null,
         },
 
-        // Amenities/Servicios - Convertir de services object a array de strings
-        amenities: servicesToAmenities(formData.services),
+        // Amenities/Servicios — array de keys del catálogo
+        amenities: formData.amenityKeys,
 
         // Equipamiento
         equipment: {
@@ -883,6 +799,15 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
     }))
   }
 
+  const handleAmenityToggle = (key, isChecked) => {
+    setFormData((prev) => {
+      const next = new Set(prev.amenityKeys || [])
+      if (isChecked) next.add(key)
+      else next.delete(key)
+      return { ...prev, amenityKeys: Array.from(next) }
+    })
+  }
+
   return {
     formData,
     errors,
@@ -897,5 +822,6 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
     handleSubmit,
     handleSportToggle,
     handleMultiSportToggle,
+    handleAmenityToggle,
   }
 }

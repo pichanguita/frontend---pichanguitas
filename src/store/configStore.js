@@ -4,21 +4,8 @@ import { API_CONFIG, getAuthHeaders } from '../config/api.config'
 import { resolveMediaUrl } from '../utils/mediaUrl'
 
 // ========================================
-// ESQUEMAS POR DEFECTO (antes en data/config)
+// ESQUEMAS POR DEFECTO (solo imágenes y social — videos viven en BD vía useVideoTutorialsStore)
 // ========================================
-
-const defaultVideos = {
-  tutorialReserva: {
-    url: '',
-    title: '¿Cómo reservar una cancha?',
-    description: 'Aprende a reservar tu cancha en pocos pasos',
-  },
-  tutorialAdmin: {
-    url: '',
-    title: 'Cómo registrarse como admin',
-    description: 'Inscribe tu cancha y administra tus reservas',
-  },
-}
 
 const defaultImages = {
   logo: {
@@ -62,7 +49,6 @@ const useConfigStore = create(
       // ========================================
       // ESTADO INICIAL
       // ========================================
-      videos: defaultVideos,
       images: defaultImages,
       socialMedia: defaultSocialMedia,
       contactInfo: {
@@ -78,62 +64,10 @@ const useConfigStore = create(
       error: null,
 
       // ========================================
-      // ACCIONES PARA VIDEOS
-      // ========================================
-      updateVideoUrl: (videoKey, url) => {
-        set((state) => ({
-          videos: {
-            ...state.videos,
-            [videoKey]: {
-              ...state.videos[videoKey],
-              url,
-            },
-          },
-        }))
-      },
-
-      updateVideoInfo: async (videoKey, info) => {
-        try {
-          const token = getAuthHeaders().Authorization?.replace('Bearer ', '')
-
-          const response = await fetch(API_CONFIG.SITE_CONFIG.UPDATE(videoKey), {
-            method: 'PUT',
-            headers: {
-              ...API_CONFIG.DEFAULT_HEADERS,
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(info),
-          })
-
-          const data = await response.json()
-
-          if (!response.ok) {
-            throw new Error(data.message || 'Error al guardar video')
-          }
-
-          // Actualizar estado local
-          set((state) => ({
-            videos: {
-              ...state.videos,
-              [videoKey]: {
-                ...state.videos[videoKey],
-                ...info,
-              },
-            },
-          }))
-
-          return data
-        } catch (error) {
-          console.error('Error al guardar video:', error)
-          throw error
-        }
-      },
-
-      // ========================================
       // ACCIONES PARA IMÁGENES
       // ========================================
 
-      // 🆕 Cargar configuración de imágenes y videos desde el backend
+      // Cargar configuración de imágenes desde el backend (site_config)
       fetchImagesFromBackend: async () => {
         set({ isLoadingImages: true, error: null })
         try {
@@ -146,52 +80,30 @@ const useConfigStore = create(
           const data = await response.json()
 
           if (data.success) {
-            // Combinar imágenes del backend con las locales
             const backendImages = {}
-            // Combinar videos del backend
-            const backendVideos = {}
-
-            // Lista de keys que son videos
-            const videoKeys = ['tutorialReserva', 'tutorialAdmin']
 
             Object.keys(data.data).forEach((key) => {
               if (data.data[key].url) {
-                // Verificar si es un video
-                if (videoKeys.includes(key)) {
-                  backendVideos[key] = {
-                    url: data.data[key].url,
-                    title: data.data[key].alt || defaultVideos[key]?.title || key,
-                    description: defaultVideos[key]?.description || '',
-                  }
-                } else {
-                  // Es una imagen
-                  const imageUrl = resolveMediaUrl(data.data[key].url)
-
-                  backendImages[key] = {
-                    url: imageUrl,
-                    alt: data.data[key].alt || defaultImages[key]?.alt || key,
-                    type: data.data[key].type || 'url',
-                    category: defaultImages[key]?.category || 'other',
-                    sport: defaultImages[key]?.sport,
-                  }
+                const imageUrl = resolveMediaUrl(data.data[key].url)
+                backendImages[key] = {
+                  url: imageUrl,
+                  alt: data.data[key].alt || defaultImages[key]?.alt || key,
+                  type: data.data[key].type || 'url',
+                  category: defaultImages[key]?.category || 'other',
+                  sport: defaultImages[key]?.sport,
                 }
               }
             })
 
-            // Merge: priorizar datos del backend, mantener los locales como fallback
             set((state) => ({
               images: {
-                ...state.images, // Imágenes por defecto
-                ...backendImages, // Sobrescribir con las del backend
-              },
-              videos: {
-                ...state.videos, // Videos por defecto
-                ...backendVideos, // Sobrescribir con los del backend
+                ...state.images,
+                ...backendImages,
               },
               isLoadingImages: false,
             }))
 
-            return { images: backendImages, videos: backendVideos }
+            return { images: backendImages }
           }
         } catch (error) {
           console.error('Error al cargar configuración:', error)
@@ -319,29 +231,10 @@ const useConfigStore = create(
       },
 
       // ========================================
-      // RESET A VALORES POR DEFECTO
-      // ========================================
-      resetToDefaults: () => {
-        set({
-          videos: defaultVideos,
-          images: defaultImages,
-          socialMedia: defaultSocialMedia,
-        })
-      },
-
-      // ========================================
       // OBTENER CONFIGURACIÓN
       // ========================================
-      getVideoUrl: (videoKey) => {
-        return get().videos[videoKey]?.url || ''
-      },
-
       getImageUrl: (imageKey) => {
         return get().images[imageKey]?.url || ''
-      },
-
-      getAllVideos: () => {
-        return get().videos
       },
 
       getAllImages: () => {
@@ -632,7 +525,14 @@ const useConfigStore = create(
     }),
     {
       name: 'config-storage',
-      version: 4,
+      version: 5,
+      // No persistir videos: la landing siempre debe leer fresco del backend
+      // vía useVideoTutorialsStore. Solo se cachea lo que es estable por sesión.
+      partialize: (state) => ({
+        images: state.images,
+        socialMedia: state.socialMedia,
+        contactInfo: state.contactInfo,
+      }),
     }
   )
 )

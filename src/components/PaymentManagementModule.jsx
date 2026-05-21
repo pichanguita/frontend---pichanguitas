@@ -28,7 +28,6 @@ const PaymentManagementModule = ({ readOnly = false }) => {
     handleCompletePayment,
 
     // Utilidades
-    ADVANCE_PERCENTAGE,
     calculateAmounts,
     canRegisterPayment,
   } = usePaymentManagement()
@@ -48,7 +47,7 @@ const PaymentManagementModule = ({ readOnly = false }) => {
   return (
     <div className="space-y-6">
       {/* Header con estadísticas */}
-      <PaymentStatsCards paymentStats={paymentStats} ADVANCE_PERCENTAGE={ADVANCE_PERCENTAGE} />
+      <PaymentStatsCards paymentStats={paymentStats} />
 
       {/* Filtros y búsqueda */}
       <PaymentFilters
@@ -68,7 +67,6 @@ const PaymentManagementModule = ({ readOnly = false }) => {
       <PaymentReservationsTable
         filteredReservations={filteredReservations}
         fields={fields}
-        ADVANCE_PERCENTAGE={ADVANCE_PERCENTAGE}
         calculateAmounts={calculateAmounts}
         canRegisterPayment={canRegisterPayment}
         handleCompletePayment={handleCompletePayment}

@@ -158,85 +158,20 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
     }))
   }
 
-  const handleAddAmenity = async () => {
-    const { value: amenity } = await Swal.fire({
-      title: 'Nueva Comodidad/Servicio',
-      html: `
-        <div class="text-left">
-          <p class="text-sm text-gray-600 mb-4">Agrega una comodidad o servicio que ofrece tu cancha</p>
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <p class="text-xs text-blue-800 font-medium mb-2">Ejemplos sugeridos:</p>
-            <ul class="text-xs text-blue-700 space-y-1">
-              <li>• Vestuarios con ducha</li>
-              <li>• Estacionamiento gratis</li>
-              <li>• Cafetería/Restaurante</li>
-              <li>• WiFi gratuito</li>
-              <li>• Alquiler de equipamiento</li>
-            </ul>
-          </div>
-        </div>
-      `,
-      input: 'text',
-      inputPlaceholder: 'Ej: Vestuarios con ducha caliente',
-      showCancelButton: true,
-      confirmButtonText:
-        '<span style="display: flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Agregar</span>',
-      cancelButtonText:
-        '<span style="display: flex; align-items: center; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Cancelar</span>',
-      confirmButtonColor: '#22c55e',
-      cancelButtonColor: '#64748b',
-      showCloseButton: true,
-      allowEscapeKey: true,
-      customClass: {
-        popup: 'rounded-2xl shadow-2xl',
-        title: 'text-xl font-bold text-gray-800',
-        htmlContainer: 'text-gray-700',
-        confirmButton:
-          'rounded-lg px-6 py-2.5 font-medium transition-all duration-200 hover:shadow-lg',
-        cancelButton:
-          'rounded-lg px-6 py-2.5 font-medium transition-all duration-200 hover:shadow-lg',
-        input:
-          'rounded-lg border-2 border-gray-200 px-4 py-3 text-base focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all',
-      },
-      inputValidator: (value) => {
-        if (!value || !value.trim()) {
-          return 'Por favor ingresa una comodidad o servicio válido'
-        }
-        if (value.trim().length < 3) {
-          return 'Debe tener al menos 3 caracteres'
-        }
-        if (value.trim().length > 100) {
-          return 'No puede exceder los 100 caracteres'
-        }
-      },
+  /**
+   * Activa/desactiva una amenidad del catálogo en la configuración.
+   * El state guarda objetos {key,label,icon_name,color_class} para que el
+   * GeneralTab pueda render directamente.
+   */
+  const handleToggleAmenity = (key, isChecked) => {
+    setConfig((prev) => {
+      const current = Array.isArray(prev.amenities) ? prev.amenities : []
+      if (isChecked) {
+        if (current.some((a) => a?.key === key)) return prev
+        return { ...prev, amenities: [...current, { key }] }
+      }
+      return { ...prev, amenities: current.filter((a) => a?.key !== key) }
     })
-
-    if (amenity && amenity.trim()) {
-      setConfig((prev) => ({
-        ...prev,
-        amenities: [...prev.amenities, amenity.trim()],
-      }))
-
-      // Mostrar confirmación
-      Swal.fire({
-        icon: 'success',
-        title: 'Comodidad Agregada',
-        text: `"${amenity.trim()}" ha sido agregado exitosamente`,
-        timer: 2000,
-        showConfirmButton: false,
-        showCloseButton: true,
-        allowEscapeKey: true,
-        toast: true,
-        position: 'top-end',
-      })
-    }
-  }
-
-  const handleRemoveAmenity = (index) => {
-    setConfig((prev) => ({
-      ...prev,
-      amenities: prev.amenities.filter((_, i) => i !== index),
-    }))
   }
 
   const handleAddRule = async () => {
@@ -671,8 +606,7 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
     handleAddSpecialPrice,
     handleUpdateSpecialPrice,
     handleRemoveSpecialPrice,
-    handleAddAmenity,
-    handleRemoveAmenity,
+    handleToggleAmenity,
     handleAddRule,
     handleRemoveRule,
     handleAddCustomImage,

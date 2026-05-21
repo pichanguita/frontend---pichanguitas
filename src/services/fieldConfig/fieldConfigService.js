@@ -127,25 +127,16 @@ const transformSchedulesToBackend = (schedules) => {
 }
 
 /**
- * Transforma amenidades del frontend al backend
- * @param {Array} amenities - Array de amenidades (strings o objetos)
- * @returns {Array} Amenidades en formato backend
+ * Transforma amenidades del frontend al backend.
+ * Acepta tanto array de keys (string) como array de objetos {key,...}
+ * y devuelve un array plano de keys que fieldsModel resuelve contra
+ * amenities_catalog.
  */
 const transformAmenitiesToBackend = (amenities) => {
   if (!Array.isArray(amenities)) return []
-
-  return amenities.map((amenity) => {
-    if (typeof amenity === 'string') {
-      return {
-        amenity_name: amenity,
-        is_available: true,
-      }
-    }
-    return {
-      amenity_name: amenity.name || amenity.amenityName || amenity.amenity_name,
-      is_available: amenity.isAvailable ?? amenity.is_available ?? true,
-    }
-  })
+  return amenities
+    .map((a) => (typeof a === 'string' ? a : a?.key))
+    .filter(Boolean)
 }
 
 /**
@@ -354,16 +345,12 @@ const transformSchedulesToFrontend = (schedules) => {
 }
 
 /**
- * Transforma amenidades del backend al frontend
+ * Pasa-through del catálogo: el backend ya devuelve {key,label,icon_name,color_class}.
+ * Se conserva la función para mantener el contrato de transformación.
  */
 const transformAmenitiesToFrontend = (amenities) => {
   if (!Array.isArray(amenities)) return []
-
-  return amenities.map((amenity) => ({
-    id: amenity.id,
-    name: amenity.amenity_name,
-    isAvailable: amenity.is_available ?? true,
-  }))
+  return amenities
 }
 
 /**

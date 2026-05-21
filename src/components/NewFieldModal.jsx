@@ -40,6 +40,7 @@ const NewFieldModal = ({ isOpen, onClose, onSave }) => {
     handleMultiSportToggle,
     handleInputChange,
     handleLocationSelect,
+    handleAmenityToggle,
     handleImageUpload,
     removeImage,
     updateImageCategory,
@@ -220,9 +221,11 @@ const NewFieldModal = ({ isOpen, onClose, onSave }) => {
 
                 {/* Servicios y Comodidades */}
                 <ServicesSection
-                  formData={formData}
+                  selectedAmenityKeys={formData.amenityKeys}
+                  onToggleAmenity={handleAmenityToggle}
+                  equipment={formData.equipment}
+                  onEquipmentChange={handleInputChange}
                   isLoading={isLoading}
-                  onChange={handleInputChange}
                 />
 
                 {/* Medios (Imágenes y Videos) */}
@@ -283,14 +286,28 @@ const NewFieldModal = ({ isOpen, onClose, onSave }) => {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
-                  onClick={handleClose}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleClose()
+                  }}
                   className="flex-1 bg-secondary-200 hover:bg-secondary-300 text-secondary-700 py-3 px-6 rounded-xl font-semibold transition-colors duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('form')}
+                  onClick={(e) => {
+                    // Evitar race condition: cuando React reemplaza este botón
+                    // por "Registrar Cancha" (type="submit", form="newFieldForm")
+                    // durante el ciclo del click, el navegador puede disparar
+                    // submit sobre el nuevo botón. Diferimos el cambio de tab al
+                    // siguiente tick para que el evento click termine ANTES de
+                    // que el botón submit aparezca en el DOM.
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setTimeout(() => setActiveTab('form'), 0)
+                  }}
                   className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center space-x-2"
                   disabled={!selectedLocation}
                 >

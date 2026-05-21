@@ -232,12 +232,12 @@ const FieldsMap = ({ onFieldSelect, onFieldDetails, selectedField }) => {
                       Comodidades incluidas:
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {showFieldDetails.amenities.map((amenity, index) => (
+                      {showFieldDetails.amenities.map((amenity) => (
                         <span
-                          key={index}
+                          key={amenity.key}
                           className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full"
                         >
-                          ✓ {amenity}
+                          ✓ {amenity.label}
                         </span>
                       ))}
                     </div>

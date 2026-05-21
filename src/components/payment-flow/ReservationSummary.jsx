@@ -2,7 +2,15 @@ import React from 'react'
 import { parseLocalDate } from '../../utils/dateFormatters'
 
 /**
- * Componente que muestra el resumen de la reserva
+ * Resumen de reserva mostrado en el paso "Confirmar Pago".
+ *
+ * Desglose de precios:
+ *  - Subtotal (precio bruto por horas)
+ *  - Descuentos especiales aplicados (horas valle, promos por día/horario, etc.)
+ *    Iterados dinámicamente desde pricing.priceInfo.appliedDiscounts —
+ *    el `name` viene de field_special_pricing.name en BD (cero hardcoding).
+ *  - Horas gratis (si el cliente activó el canje).
+ *  - Total final.
  */
 const ReservationSummary = ({
   selectedField,
@@ -12,6 +20,14 @@ const ReservationSummary = ({
   timeRanges,
   pricing,
 }) => {
+  const appliedDiscounts = Array.isArray(pricing?.priceInfo?.appliedDiscounts)
+    ? pricing.priceInfo.appliedDiscounts.filter((d) => (d?.discountAmount || 0) > 0)
+    : []
+
+  const specialDiscountTotal = Number(pricing?.discount) || 0
+  const freeHoursUsed = Number(pricing?.freeHoursUsed) || 0
+  const freeHoursDiscount = Number(pricing?.freeHoursDiscount) || 0
+
   return (
     <div className="bg-secondary-50 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 mb-6 sm:mb-8">
       <h3 className="font-semibold text-base sm:text-lg text-secondary-800 mb-3 sm:mb-4">
@@ -55,39 +71,39 @@ const ReservationSummary = ({
 
       {/* Desglose de precios */}
       <div className="border-t pt-3 sm:pt-4 space-y-2 text-xs sm:text-sm">
-        {pricing?.priceInfo?.details && pricing.priceInfo.details.length > 0 && (
-          <div className="space-y-1">
-            {pricing.priceInfo.details.map((detail, index) => (
-              <div key={index} className="flex justify-between text-secondary-700">
-                <span>{detail.timeRange}</span>
-                <span>S/ {detail.price}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex justify-between text-secondary-700 pt-2">
+        <div className="flex justify-between text-secondary-700">
           <span>Subtotal:</span>
-          <span>S/ {pricing?.subtotal || 0}</span>
+          <span>S/ {Number(pricing?.subtotal || 0).toFixed(2)}</span>
         </div>
 
-        {pricing?.couponDiscount > 0 && (
-          <div className="flex justify-between text-green-600 font-medium">
-            <span>Descuento de cupón:</span>
-            <span>- S/ {pricing.couponDiscount}</span>
-          </div>
-        )}
+        {/* Descuentos por horas valle / promociones del field */}
+        {appliedDiscounts.length > 0
+          ? appliedDiscounts.map((discount, index) => (
+              <div
+                key={`${discount.name}-${index}`}
+                className="flex justify-between text-green-600 font-medium"
+              >
+                <span>{discount.name}:</span>
+                <span>- S/ {Number(discount.discountAmount).toFixed(2)}</span>
+              </div>
+            ))
+          : specialDiscountTotal > 0 && (
+              <div className="flex justify-between text-green-600 font-medium">
+                <span>Descuento aplicado:</span>
+                <span>- S/ {specialDiscountTotal.toFixed(2)}</span>
+              </div>
+            )}
 
-        {pricing?.freeHoursUsed > 0 && pricing?.freeHoursDiscount > 0 && (
+        {freeHoursUsed > 0 && freeHoursDiscount > 0 && (
           <div className="flex justify-between text-green-600 font-medium">
-            <span>🎁 Horas gratis ({pricing.freeHoursUsed}h):</span>
-            <span>- S/ {pricing.freeHoursDiscount}</span>
+            <span>🎁 Horas gratis ({freeHoursUsed}h):</span>
+            <span>- S/ {freeHoursDiscount.toFixed(2)}</span>
           </div>
         )}
 
         <div className="flex justify-between text-base sm:text-lg font-bold text-primary-600 pt-2 border-t">
           <span>Total:</span>
-          <span>S/ {pricing?.totalAmount || 0}</span>
+          <span>S/ {Number(pricing?.totalAmount || 0).toFixed(2)}</span>
         </div>
       </div>
     </div>

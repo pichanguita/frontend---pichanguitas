@@ -2,6 +2,8 @@ import React, { useRef } from 'react'
 import { Plus, X, Image, Upload, AlertCircle } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { API_CONFIG } from '../../../config/api.config'
+import useAmenitiesCatalog from '../../../hooks/useAmenitiesCatalog'
+import { getAmenityIconComponent } from '../../../utils/amenityIconRegistry'
 
 // Helper para obtener URL completa de imagen
 const getFullImageUrl = (imageUrl) => {
@@ -23,8 +25,7 @@ const GeneralTab = ({
   getFieldTypeInfo,
   onGeneralChange,
   onFieldTypeChange,
-  onAddAmenity,
-  onRemoveAmenity,
+  onToggleAmenity,
   onAddRule,
   onRemoveRule,
   onAddCustomImage,
@@ -32,6 +33,12 @@ const GeneralTab = ({
   onRemoveCustomImage,
 }) => {
   const fileInputRef = useRef(null)
+  const { catalog: amenitiesCatalog, isLoading: amenitiesLoading } = useAmenitiesCatalog()
+  const selectedKeys = new Set(
+    (config.amenities || [])
+      .map((a) => (typeof a === 'string' ? a : a?.key))
+      .filter(Boolean)
+  )
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
@@ -151,37 +158,35 @@ const GeneralTab = ({
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-secondary-900">Comodidades</h3>
-            <button
-              onClick={onAddAmenity}
-              className="text-primary-600 hover:text-primary-700 text-sm flex items-center space-x-1"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Agregar</span>
-            </button>
-          </div>
+          <h3 className="text-lg font-semibold text-secondary-900">Comodidades</h3>
 
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {config.amenities.map((amenity, index) => {
-              const amenityName =
-                typeof amenity === 'string' ? amenity : amenity.name || amenity.amenityName || ''
-              return (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-2 bg-secondary-50 rounded"
-                >
-                  <span className="text-sm">{amenityName}</span>
-                  <button
-                    onClick={() => onRemoveAmenity(index)}
-                    className="text-red-600 hover:text-red-800"
+          {amenitiesLoading && (
+            <p className="text-sm text-secondary-500">Cargando catálogo...</p>
+          )}
+
+          {!amenitiesLoading && amenitiesCatalog.length > 0 && (
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {amenitiesCatalog.map((amenity) => {
+                const Icon = getAmenityIconComponent(amenity.icon_name)
+                const checked = selectedKeys.has(amenity.key)
+                return (
+                  <label
+                    key={amenity.key}
+                    className="flex items-center space-x-3 p-2 bg-secondary-50 rounded cursor-pointer"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => onToggleAmenity(amenity.key, e.target.checked)}
+                      className="w-4 h-4 text-primary-600 border-2 border-secondary-300 rounded focus:ring-primary-500"
+                    />
+                    <Icon className="w-4 h-4 text-secondary-600 flex-shrink-0" />
+                    <span className="text-sm">{amenity.label}</span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 

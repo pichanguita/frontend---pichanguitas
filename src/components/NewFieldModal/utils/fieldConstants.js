@@ -24,17 +24,8 @@ export const INITIAL_FORM_DATA = {
     area: '',
     surfaceType: 'cesped_sintetico',
   },
-  services: {
-    hasBar: false,
-    hasDrinks: false,
-    hasSnacks: false,
-    hasParking: false,
-    hasChangingRooms: false,
-    hasShowers: false,
-    hasWifi: false,
-    hasSecurity: false,
-    hasFirstAid: false,
-  },
+  // Keys del catálogo amenities_catalog (slugs como 'showers', 'bar', etc.)
+  amenityKeys: [],
   equipment: {
     hasJerseyRental: false,
     jerseyPrice: '',
@@ -42,12 +33,6 @@ export const INITIAL_FORM_DATA = {
     ballPrice: '',
     hasConeRental: false,
     conePrice: '',
-  },
-  barDetails: {
-    beverages: [],
-    snacks: [],
-    openDuringGames: false,
-    separateBarArea: false,
   },
   sportTypes: [],
   isMultiSport: false,
@@ -115,21 +100,6 @@ export const VALIDATION_LIMITS = {
       acceptedTypes: ['video/'],
     },
   },
-}
-
-// Mapeo de servicios a amenities
-export const SERVICE_TO_AMENITY_MAP = {
-  cesped_sintetico: 'Césped sintético',
-  cesped_natural: 'Césped natural',
-  hasBar: 'Bar',
-  hasDrinks: 'Venta de bebidas',
-  hasSnacks: 'Venta de snacks',
-  hasParking: 'Estacionamiento',
-  hasChangingRooms: 'Vestuarios',
-  hasShowers: 'Duchas',
-  hasWifi: 'WiFi',
-  hasSecurity: 'Seguridad',
-  hasFirstAid: 'Primeros auxilios',
 }
 
 // Reglas por defecto

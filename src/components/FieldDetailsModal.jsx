@@ -362,19 +362,14 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
                     Comodidades
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {field.amenities.map((amenity, index) => {
-                      // Manejar tanto strings como objetos {id, name, isAvailable}
-                      const amenityName =
-                        typeof amenity === 'string' ? amenity : amenity?.name || 'Comodidad'
-                      return (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full"
-                        >
-                          ✓ {amenityName}
-                        </span>
-                      )
-                    })}
+                    {field.amenities.map((amenity) => (
+                      <span
+                        key={amenity.key}
+                        className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full"
+                      >
+                        ✓ {amenity.label}
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}

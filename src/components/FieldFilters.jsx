@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react'
 import { Filter, MapPin, DollarSign, Clock, Users, ChevronDown, Search } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
+import useAmenitiesCatalog from '../hooks/useAmenitiesCatalog'
+import { getAmenityIconComponent } from '../utils/amenityIconRegistry'
 
 const FieldFilters = ({ onFiltersChange }) => {
   const { fields } = useBookingStore()
+  const { catalog: availableAmenities } = useAmenitiesCatalog()
   const [isExpanded, setIsExpanded] = useState(false)
   const [activeFilters, setActiveFilters] = useState({
     location: '',
     priceRange: { min: 0, max: 200 },
     timeSlot: '',
     fieldType: '',
-    amenities: [],
+    amenities: [], // array de keys del catálogo
     capacity: '',
     searchQuery: '',
   })
@@ -24,17 +27,6 @@ const FieldFilters = ({ onFiltersChange }) => {
     { value: 'football', label: 'Fútbol' },
     { value: 'stadium', label: 'Estadio' },
     { value: 'futsal', label: 'Futsal' },
-  ]
-
-  // Amenidades disponibles
-  const availableAmenities = [
-    { value: 'Césped sintético', label: 'Césped sintético', icon: '🌱' },
-    { value: 'Césped natural', label: 'Césped natural', icon: '🌿' },
-    { value: 'Iluminación LED', label: 'Iluminación LED', icon: '💡' },
-    { value: 'Vestuarios', label: 'Vestuarios', icon: '🚿' },
-    { value: 'Tribunas', label: 'Tribunas', icon: '🪑' },
-    { value: 'Estacionamiento', label: 'Estacionamiento', icon: '🚗' },
-    { value: 'Cafetería', label: 'Cafetería', icon: '☕' },
   ]
 
   // Rangos de horario
@@ -84,11 +76,10 @@ const FieldFilters = ({ onFiltersChange }) => {
         return false
       }
 
-      // Filtro por amenidades
+      // Filtro por amenidades (comparación por key del catálogo)
       if (activeFilters.amenities.length > 0) {
-        const hasAllAmenities = activeFilters.amenities.every((amenity) =>
-          field.amenities?.includes(amenity)
-        )
+        const fieldKeys = new Set((field.amenities || []).map((a) => a?.key).filter(Boolean))
+        const hasAllAmenities = activeFilters.amenities.every((key) => fieldKeys.has(key))
         if (!hasAllAmenities) return false
       }
 
@@ -328,20 +319,24 @@ const FieldFilters = ({ onFiltersChange }) => {
                 Amenidades
               </label>
               <div className="flex flex-wrap gap-2">
-                {availableAmenities.map((amenity) => (
-                  <button
-                    key={amenity.value}
-                    onClick={() => handleAmenityToggle(amenity.value)}
-                    className={`flex items-center space-x-1 px-3 py-1.5 rounded-full border-2 text-sm transition-all duration-200 ${
-                      activeFilters.amenities.includes(amenity.value)
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-secondary-200 hover:border-primary-300 text-secondary-600'
-                    }`}
-                  >
-                    <span>{amenity.icon}</span>
-                    <span>{amenity.label}</span>
-                  </button>
-                ))}
+                {availableAmenities.map((amenity) => {
+                  const Icon = getAmenityIconComponent(amenity.icon_name)
+                  const isActive = activeFilters.amenities.includes(amenity.key)
+                  return (
+                    <button
+                      key={amenity.key}
+                      onClick={() => handleAmenityToggle(amenity.key)}
+                      className={`flex items-center space-x-1 px-3 py-1.5 rounded-full border-2 text-sm transition-all duration-200 ${
+                        isActive
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-secondary-200 hover:border-primary-300 text-secondary-600'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{amenity.label}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 

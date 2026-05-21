@@ -30,6 +30,7 @@ const EditFieldModal = ({ isOpen, onClose, onSave, field }) => {
     handleSubmit,
     handleSportToggle,
     handleMultiSportToggle,
+    handleAmenityToggle,
   } = useEditFieldForm(isOpen, field, onSave, onClose)
 
   // Cargar tipos de deportes desde la base de datos al montar el componente
@@ -189,9 +190,11 @@ const EditFieldModal = ({ isOpen, onClose, onSave, field }) => {
 
                 {/* Services and Amenities */}
                 <ServicesSection
-                  formData={formData}
+                  selectedAmenityKeys={formData.amenityKeys}
+                  onToggleAmenity={handleAmenityToggle}
+                  equipment={formData.equipment}
+                  onEquipmentChange={handleInputChange}
                   isLoading={isLoading}
-                  handleInputChange={handleInputChange}
                 />
               </form>
             )}
@@ -229,7 +232,17 @@ const EditFieldModal = ({ isOpen, onClose, onSave, field }) => {
             ) : (
               <button
                 type="button"
-                onClick={() => setActiveTab('form')}
+                onClick={(e) => {
+                  // Evitar race condition: cuando React reemplaza este botón
+                  // por "Guardar Cambios" (type="submit", form="edit-field-form")
+                  // durante el ciclo del click, el navegador puede disparar
+                  // submit sobre el nuevo botón. Diferimos el cambio de tab al
+                  // siguiente tick para que el evento click termine ANTES de
+                  // que el botón submit aparezca en el DOM.
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setTimeout(() => setActiveTab('form'), 0)
+                }}
                 className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors duration-200 flex items-center justify-center space-x-2"
               >
                 <Settings className="w-5 h-5" />

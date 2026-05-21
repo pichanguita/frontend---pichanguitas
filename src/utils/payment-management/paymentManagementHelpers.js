@@ -4,37 +4,28 @@
 
 import { parseLocalDate } from '../dateFormatters'
 
-// Constantes
-export const ADVANCE_PERCENTAGE = 30 // 30% de adelanto requerido
-
 /**
- * Calcular montos para una reserva (total, adelanto, pendiente)
- * IMPORTANTE: Usa los valores REALES de la BD, NO calcula el 30% hardcodeado
- * Prioridad: total_price > totalPrice (precio FINAL después de descuentos)
- * NOTA: subtotal es el precio ANTES de descuentos, total_price es el precio FINAL
+ * Calcular montos para una reserva (total, adelanto, pendiente).
+ * Usa los valores REALES de la BD (total_price, advance_payment, remaining_payment).
+ * Para canchas sin total_price persistido (legado), cae al precio bruto del field.
+ * El monto del adelanto siempre proviene de la BD (fields.advance_payment_amount
+ * via reservations.advance_payment) — el frontend no asume porcentajes.
  */
 export const calculateAmounts = (reservation, fields) => {
-  // total_price es la fuente única de verdad (precio FINAL después de descuentos).
-  // Aplicar `??` ANTES de parseFloat: total_price = 0 (reserva 100% por horas gratis)
-  // es válido y no debe caer al fallback bruto.
   const totalRaw = reservation.totalPrice ?? reservation.total_price
   const advance = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
   const pending = parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
-  // Fallback solo si total_price está REALMENTE ausente (legado sin migrar).
-  // total_price = 0 NO es ausencia, es cero legítimo (horas gratis cubrieron todo).
   if (totalRaw === null || totalRaw === undefined) {
     if (fields) {
       const fieldId = reservation.fieldId || reservation.field_id
       const field = fields.find((f) => f.id === fieldId)
       if (field) {
         const calculatedTotal = parseFloat(field.pricePerHour) * parseFloat(reservation.hours || 1)
-        const calculatedAdvance = calculatedTotal * (ADVANCE_PERCENTAGE / 100)
-        const calculatedPending = calculatedTotal - calculatedAdvance
         return {
           total: calculatedTotal,
-          advance: calculatedAdvance,
-          pending: calculatedPending,
+          advance,
+          pending: Math.max(calculatedTotal - advance, 0),
         }
       }
     }
@@ -175,36 +166,33 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
     const paymentStatus = reservation.paymentStatus || reservation.payment_status
 
     // ============================================
-    // RESERVAS CANCELADAS - No tienen pagos pendientes
-    // Solo cuentan el adelanto recibido como ingreso
+    // RESERVAS CANCELADAS - No tienen pagos pendientes.
+    // El backend mantiene reservations.advance_kept como el monto NETO
+    // retenido por la empresa: ya descontó el refund procesado, o se
+    // re-sincroniza al monto completo si el refund se rechaza.
+    // Aquí solo sumamos lo que ya está calculado.
     // ============================================
     if (reservationStatus === 'cancelled') {
       stats.cancelledCount++
 
-      // Verificar si hay reembolso procesado
-      const refundAmount = parseFloat(reservation.refundAmount || reservation.refund_amount) || 0
+      const refundAmount = parseFloat(reservation.refundAmount ?? reservation.refund_amount) || 0
       const refundStatus = reservation.refundStatus || reservation.refund_status
-
-      // El adelanto que se recibió cuenta como ingreso
-      // El advance_kept tiene el adelanto retenido después del reembolso
+      // Usar ?? para distinguir 0 legítimo (refund 100%) de ausencia (legacy).
+      const advanceKeptRaw = reservation.advanceKept ?? reservation.advance_kept
       const advanceKept =
-        parseFloat(reservation.advanceKept || reservation.advance_kept) || advancePaid
+        advanceKeptRaw !== null && advanceKeptRaw !== undefined
+          ? parseFloat(advanceKeptRaw) || 0
+          : advancePaid
 
-      // Si hay reembolso procesado, contabilizarlo
+      stats.cancelledRevenue += advanceKept
+      stats.totalCollected += advanceKept
+
       if (refundAmount > 0 && refundStatus === 'processed') {
         stats.totalRefunded += refundAmount
         stats.refundedCount++
-        // El ingreso real es el adelanto menos el reembolso
-        const netIncome = advanceKept - refundAmount
-        stats.cancelledRevenue += netIncome > 0 ? netIncome : 0
-        stats.totalCollected += netIncome > 0 ? netIncome : 0
-      } else {
-        // Sin reembolso, el adelanto retenido es el ingreso
-        stats.cancelledRevenue += advanceKept
-        stats.totalCollected += advanceKept
       }
 
-      return // No procesar más esta reserva
+      return
     }
 
     // Resto de estados normales
@@ -214,9 +202,11 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
     } else if (paymentStatus === 'no_show') {
       stats.noShowCount++
 
-      // Si se procesó un reembolso del adelanto, descontarlo del ingreso neto.
-      // Mismo patrón que la rama 'cancelled' arriba.
-      const refundAmount = parseFloat(reservation.refundAmount || reservation.refund_amount) || 0
+      // En no_show no se persiste advance_kept (el monto retenido se deriva
+      // siempre de advance_payment). Por eso, si se procesa un refund, hay
+      // que restarlo aquí: `advancePaid - refundAmount`. Esto NO es doble
+      // resta porque advance_payment es el adelanto BRUTO, no neto.
+      const refundAmount = parseFloat(reservation.refundAmount ?? reservation.refund_amount) || 0
       const refundStatus = reservation.refundStatus || reservation.refund_status
 
       if (refundAmount > 0 && refundStatus === 'processed') {
@@ -235,7 +225,14 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
       stats.totalPending += pendingAmount
       stats.pendingCount++
     } else {
-      // pending o cualquier otro estado
+      // pending o cualquier otro estado.
+      // El adelanto efectivamente pagado por el cliente cuenta como cobrado
+      // desde la creación de la reserva, aunque payment_status siga en 'pending'
+      // (el backend deja la reserva con voucher/efectivo en 'pending' hasta que
+      // el admin confirme el pago). Solo se descuenta cuando el reembolso
+      // asociado pasa a 'processed': la rama no_show resta refundAmount y la
+      // rama cancelled usa advance_kept (ya neto del refund procesado).
+      stats.totalCollected += advancePaid
       stats.totalPending += pendingAmount
       stats.pendingCount++
     }

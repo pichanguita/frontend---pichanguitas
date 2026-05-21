@@ -252,15 +252,15 @@ export const API_CONFIG = {
       `${API_BASE_URL}/api/roles-permissions/roles/${roleId}/permissions`,
   },
 
-  // Endpoints de amenidades de canchas
-  FIELD_AMENITIES: {
-    GET_ALL: `${API_BASE_URL}/api/field-amenities`,
-    GET_BY_ID: (id) => `${API_BASE_URL}/api/field-amenities/${id}`,
-    GET_BY_FIELD: (fieldId) => `${API_BASE_URL}/api/field-amenities/field/${fieldId}`,
-    CREATE: `${API_BASE_URL}/api/field-amenities`,
-    CREATE_MULTIPLE: `${API_BASE_URL}/api/field-amenities/multiple`,
-    UPDATE: (id) => `${API_BASE_URL}/api/field-amenities/${id}`,
-    DELETE: (id) => `${API_BASE_URL}/api/field-amenities/${id}`,
+  // Catálogo de amenidades (lectura única para forms y render del cliente)
+  AMENITIES_CATALOG: {
+    GET_ALL: `${API_BASE_URL}/api/amenities-catalog`,
+  },
+
+  // Videos tutoriales (landing y panel admin)
+  VIDEO_TUTORIALS: {
+    GET_ALL: `${API_BASE_URL}/api/video-tutorials`,
+    UPDATE: (slug) => `${API_BASE_URL}/api/video-tutorials/${slug}`,
   },
 
   // Endpoints de imágenes de canchas

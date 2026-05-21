@@ -87,8 +87,8 @@ export const createFieldShareLink = (fieldData) => {
 ☎️ *Contacto:* ${fieldData.phone || ''}
 
 ${
-  fieldData.amenities
-    ? `🌟 *Servicios:*\n${fieldData.amenities.map((a) => `• ${a}`).join('\n')}`
+  Array.isArray(fieldData.amenities) && fieldData.amenities.length > 0
+    ? `🌟 *Servicios:*\n${fieldData.amenities.map((a) => `• ${a.label}`).join('\n')}`
     : ''
 }
 

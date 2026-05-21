@@ -1,16 +1,12 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Save, RefreshCw, AlertCircle } from 'lucide-react'
+import { Save, AlertCircle } from 'lucide-react'
 import VideoForm from './VideoForm'
+import useVideoTutorialsStore from '../../store/videoTutorialsStore'
 
-const VideosTab = ({
-  videoForm,
-  onVideoChange,
-  onSaveVideo,
-  onSaveAllVideos,
-  onReset,
-  onPreview,
-}) => {
+const VideosTab = ({ videoForm, onVideoChange, onSaveVideo, onSaveAllVideos, onPreview }) => {
+  const { videos, isLoading, error } = useVideoTutorialsStore()
+
   return (
     <motion.div
       key="videos"
@@ -20,44 +16,38 @@ const VideosTab = ({
       className="space-y-6"
     >
       {/* Actions Bar */}
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-3">
-          <button
-            onClick={onSaveAllVideos}
-            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 shadow-sm"
-          >
-            <Save className="w-4 h-4" />
-            <span>Guardar Todos</span>
-          </button>
-        </div>
-
+      <div className="flex justify-end items-center">
         <button
-          onClick={onReset}
-          className="text-red-600 hover:text-red-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+          onClick={onSaveAllVideos}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 shadow-sm"
         >
-          <RefreshCw className="w-4 h-4" />
-          <span>Restaurar por Defecto</span>
+          <Save className="w-4 h-4" />
+          <span>Guardar Todos</span>
         </button>
       </div>
 
-      {/* Video Forms */}
-      <VideoForm
-        videoKey="tutorialReserva"
-        videoData={videoForm.tutorialReserva}
-        onChange={onVideoChange}
-        onSave={onSaveVideo}
-        onPreview={onPreview}
-        title="Video: Cómo Reservar una Cancha"
-      />
+      {isLoading && videos.length === 0 && (
+        <p className="text-sm text-secondary-500">Cargando tutoriales...</p>
+      )}
 
-      <VideoForm
-        videoKey="tutorialAdmin"
-        videoData={videoForm.tutorialAdmin}
-        onChange={onVideoChange}
-        onSave={onSaveVideo}
-        onPreview={onPreview}
-        title="Video: Cómo Registrarse como Admin"
-      />
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          No se pudieron cargar los tutoriales. Recarga la página.
+        </div>
+      )}
+
+      {/* Video Forms (iteración dinámica desde el catálogo) */}
+      {videos.map((video) => (
+        <VideoForm
+          key={video.slug}
+          slug={video.slug}
+          videoData={videoForm[video.slug] || { title: '', description: '', url: '' }}
+          onChange={onVideoChange}
+          onSave={onSaveVideo}
+          onPreview={onPreview}
+          title={`Video: ${video.title}`}
+        />
+      ))}
 
       {/* Info Alert */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

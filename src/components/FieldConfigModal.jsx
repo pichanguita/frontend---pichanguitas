@@ -30,8 +30,7 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
     handleAddSpecialPrice,
     handleUpdateSpecialPrice,
     handleRemoveSpecialPrice,
-    handleAddAmenity,
-    handleRemoveAmenity,
+    handleToggleAmenity,
     handleAddRule,
     handleRemoveRule,
     handleAddCustomImage,
@@ -106,8 +105,7 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
             getFieldTypeInfo={getFieldTypeInfo}
             onGeneralChange={handleGeneralChange}
             onFieldTypeChange={handleFieldTypeChange}
-            onAddAmenity={handleAddAmenity}
-            onRemoveAmenity={handleRemoveAmenity}
+            onToggleAmenity={handleToggleAmenity}
             onAddRule={handleAddRule}
             onRemoveRule={handleRemoveRule}
             onAddCustomImage={handleAddCustomImage}

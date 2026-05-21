@@ -39,7 +39,6 @@ const ClientPanel = () => {
     loadReservations,
     freeHoursToUse,
     setFreeHoursToUse,
-    availableFreeHours,
     loadMyFreeHours,
   } = useBookingStore()
   const { fields, loadFields } = useFieldStore()
@@ -375,10 +374,13 @@ const ClientPanel = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <PromotionsView
               onNavigateToFields={(options) => {
-                // Auto-aplicación universal: BookingFlow sincroniza freeHoursToUse al
-                // entrar a la confirmación si hay saldo. El botón "Usar mis horas
-                // gratis ahora" simplemente abre el modal de reserva.
-                if (options?.useFreeHours && availableFreeHours > 0) {
+                // El botón "Usar mis horas gratis ahora" envía useFreeHours=true y
+                // PromotionsView ya validó el saldo antes de pintar el botón.
+                // BookingFlow se encarga de sincronizar freeHoursToUse al entrar
+                // al paso de confirmación. Aquí solo abrimos el modal.
+                // El resto de CTAs ("Reservar" en cards de precios especiales)
+                // navega al tab Canchas.
+                if (options?.useFreeHours) {
                   setIsBookingModalOpen(true)
                 } else {
                   setActiveTab('canchas')

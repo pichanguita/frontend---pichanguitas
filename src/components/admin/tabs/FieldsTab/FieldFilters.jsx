@@ -80,7 +80,11 @@ export const FieldFilters = ({
           >
             <option value={DEFAULT_VALUES.ALL}>{FILTER_TEXTS.ALL_OWNERS}</option>
             {users
-              .filter((u) => u.role === 'admin' && u.adminType === 'field')
+              .filter(
+                (u) =>
+                  u.role === 'admin' &&
+                  (u.adminType === 'field' || u.adminType === 'field_owner')
+              )
               .map((owner) => (
                 <option key={owner.id} value={owner.id}>
                   {owner.name}

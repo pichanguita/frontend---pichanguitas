@@ -136,7 +136,7 @@ const useNewFieldForm = (onSave, onClose, user, availableSports = []) => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
 
-    // Manejar campos anidados (dimensions, services, barDetails)
+    // Manejar campos anidados (dimensions, equipment)
     if (name.includes('.')) {
       const [parent, child] = name.split('.')
       setFormData((prev) => ({
@@ -431,6 +431,18 @@ const useNewFieldForm = (onSave, onClose, user, availableSports = []) => {
   }
 
   /**
+   * Toggle de amenidad por key del catálogo
+   */
+  const handleAmenityToggle = useCallback((key, isChecked) => {
+    setFormData((prev) => {
+      const next = new Set(prev.amenityKeys || [])
+      if (isChecked) next.add(key)
+      else next.delete(key)
+      return { ...prev, amenityKeys: Array.from(next) }
+    })
+  }, [])
+
+  /**
    * Subir imágenes
    */
   const handleImageUpload = (e) => {
@@ -664,6 +676,7 @@ const useNewFieldForm = (onSave, onClose, user, availableSports = []) => {
     handleMultiSportToggle,
     handleInputChange,
     handleLocationSelect,
+    handleAmenityToggle,
     handleImageUpload,
     removeImage,
     updateImageCategory,

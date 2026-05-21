@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { MapPin, DollarSign, Clock } from 'lucide-react'
 import { getFieldImage } from '../../data/fieldImages'
-import { getMainAmenities } from '../../utils/fields-showcase/amenityMapper'
+import { getMainAmenities } from '../../utils/bookingHelpers'
 import { SPORT_ICONS } from '../../utils/fields-showcase/constants'
 import StatusBadge from './StatusBadge'
 

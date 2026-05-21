@@ -1,19 +1,45 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Swal from 'sweetalert2'
 import imageCompression from 'browser-image-compression'
+import useVideoTutorialsStore from '../store/videoTutorialsStore'
 
 export const useSiteConfig = (configStore) => {
-  const { videos, updateVideoInfo, updateImageUrl, uploadImage, resetToDefaults } = configStore
+  const { updateImageUrl, uploadImage } = configStore
+  const { videos, loadVideos, updateVideo } = useVideoTutorialsStore()
 
   // Estados locales
-  const [videoForm, setVideoForm] = useState({
-    tutorialReserva: { ...videos.tutorialReserva },
-    tutorialAdmin: { ...videos.tutorialAdmin },
-  })
+  // videoForm es un mapa por slug con los valores en edición
+  const [videoForm, setVideoForm] = useState({})
   const [imageUrlForm, setImageUrlForm] = useState({})
   const [uploadingImage, setUploadingImage] = useState(null)
   const [activeTab, setActiveTab] = useState('videos')
   const [previewVideo, setPreviewVideo] = useState(null)
+
+  // Cargar tutoriales al montar y rehidratar el form cuando lleguen
+  useEffect(() => {
+    loadVideos().catch(() => {
+      /* el store ya captura el error */
+    })
+  }, [loadVideos])
+
+  useEffect(() => {
+    if (!videos || videos.length === 0) return
+    setVideoForm((prev) => {
+      // Si el form aún no tiene este slug, copiamos desde el backend.
+      // No sobrescribir si el admin ya está editando (mantener su texto).
+      const next = { ...prev }
+      videos.forEach((v) => {
+        if (!next[v.slug]) {
+          next[v.slug] = {
+            title: v.title,
+            description: v.description,
+            url: v.video_url,
+          }
+        }
+      })
+      return next
+    })
+  }, [videos])
 
   // ========================================
   // MANEJO DE VIDEOS
@@ -55,23 +81,32 @@ export const useSiteConfig = (configStore) => {
     return null
   }
 
-  const handleVideoChange = (videoKey, field, value) => {
+  const handleVideoChange = (slug, field, value) => {
     setVideoForm((prev) => ({
       ...prev,
-      [videoKey]: {
-        ...prev[videoKey],
+      [slug]: {
+        ...prev[slug],
         [field]: value,
       },
     }))
   }
 
-  const saveVideo = async (videoKey) => {
-    const videoData = videoForm[videoKey]
+  /**
+   * Convierte la URL a embed si no está vacía. Devuelve {ok, url|error}.
+   */
+  const prepareVideoUrl = (rawUrl) => {
+    if (!rawUrl || rawUrl.trim() === '') return { ok: true, url: '' }
+    const embedUrl = convertToEmbedUrl(rawUrl.trim())
+    if (!embedUrl) return { ok: false, error: 'URL de YouTube inválida' }
+    return { ok: true, url: embedUrl }
+  }
 
-    // Intentar convertir la URL al formato embed
-    const embedUrl = convertToEmbedUrl(videoData.url)
+  const saveVideo = async (slug) => {
+    const videoData = videoForm[slug]
+    if (!videoData) return
 
-    if (!embedUrl) {
+    const prep = prepareVideoUrl(videoData.url)
+    if (!prep.ok) {
       Swal.fire({
         icon: 'warning',
         title: 'URL Inválida',
@@ -81,27 +116,23 @@ export const useSiteConfig = (configStore) => {
       return
     }
 
-    // Guardar con la URL convertida a embed
-    const dataToSave = {
-      ...videoData,
-      url: embedUrl,
-    }
-
     try {
-      // Mostrar loading
       Swal.fire({
         title: 'Guardando video...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       })
 
-      // Guardar en el backend
-      await updateVideoInfo(videoKey, dataToSave)
+      await updateVideo(slug, {
+        title: videoData.title,
+        description: videoData.description,
+        video_url: prep.url,
+      })
 
-      // Actualizar el form local
+      // Sincronizar el form con la URL convertida a embed
       setVideoForm((prev) => ({
         ...prev,
-        [videoKey]: dataToSave,
+        [slug]: { ...prev[slug], url: prep.url },
       }))
 
       Swal.fire({
@@ -121,18 +152,69 @@ export const useSiteConfig = (configStore) => {
     }
   }
 
-  const saveAllVideos = () => {
-    Object.keys(videoForm).forEach((key) => {
-      updateVideoInfo(key, videoForm[key])
+  const saveAllVideos = async () => {
+    const slugs = Object.keys(videoForm)
+    if (slugs.length === 0) return
+
+    // Validar todas las URLs antes de enviar nada
+    const prepared = slugs.map((slug) => {
+      const data = videoForm[slug]
+      const prep = prepareVideoUrl(data.url)
+      return { slug, data, prep }
     })
 
+    const invalid = prepared.filter((p) => !p.prep.ok)
+    if (invalid.length > 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'URL Inválida',
+        text: `Revisa la URL de YouTube de ${invalid.length} video(s).`,
+        confirmButtonColor: '#22c55e',
+      })
+      return
+    }
+
     Swal.fire({
-      icon: 'success',
-      title: '¡Todos los Videos Actualizados!',
-      text: 'Los cambios se han guardado correctamente',
-      timer: 2000,
-      showConfirmButton: false,
+      title: 'Guardando todos los videos...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
     })
+
+    try {
+      await Promise.all(
+        prepared.map(({ slug, data, prep }) =>
+          updateVideo(slug, {
+            title: data.title,
+            description: data.description,
+            video_url: prep.url,
+          })
+        )
+      )
+
+      // Sincronizar URLs convertidas a embed
+      setVideoForm((prev) => {
+        const next = { ...prev }
+        prepared.forEach(({ slug, prep }) => {
+          if (next[slug]) next[slug] = { ...next[slug], url: prep.url }
+        })
+        return next
+      })
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Todos los Videos Actualizados!',
+        text: 'Los cambios se han guardado correctamente',
+        timer: 2000,
+        showConfirmButton: false,
+      })
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al guardar',
+        text: error.message || 'No se pudieron guardar todos los videos',
+        confirmButtonColor: '#22c55e',
+      })
+    }
   }
 
   // ========================================
@@ -255,39 +337,6 @@ export const useSiteConfig = (configStore) => {
   }
 
   // ========================================
-  // RESET
-  // ========================================
-  const handleReset = () => {
-    Swal.fire({
-      icon: 'warning',
-      title: '¿Estás seguro?',
-      text: 'Esto restaurará todos los videos e imágenes a sus valores por defecto',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, restaurar',
-      cancelButtonText: 'Cancelar',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        resetToDefaults()
-        setVideoForm({
-          tutorialReserva: videos.tutorialReserva,
-          tutorialAdmin: videos.tutorialAdmin,
-        })
-        setImageUrlForm({})
-
-        Swal.fire({
-          icon: 'success',
-          title: '¡Restaurado!',
-          text: 'Se han restaurado los valores por defecto',
-          timer: 2000,
-          showConfirmButton: false,
-        })
-      }
-    })
-  }
-
-  // ========================================
   // PREVIEW VIDEO
   // ========================================
   const openVideoPreview = (videoUrl) => {
@@ -316,9 +365,6 @@ export const useSiteConfig = (configStore) => {
     handleImageUrlChange,
     saveImageUrl,
     handleImageUpload,
-
-    // Reset
-    handleReset,
 
     // Preview
     openVideoPreview,

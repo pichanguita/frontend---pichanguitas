@@ -30,13 +30,20 @@ const ReviewsManagementModule = () => {
     loadReviews()
   }, [loadReviews])
 
-  // Cargar admins de cancha para el filtro (solo si es superadmin)
+  // Cargar admins de cancha para el filtro (solo si es superadmin).
+  // No filtramos por admin_type en la query: en BD conviven valores legacy
+  // 'field' y 'field_owner' para administradores de cancha; pedir uno solo
+  // dejaba fuera a los del otro. Traemos todos los admins y filtramos en
+  // frontend aceptando ambos valores.
   useEffect(() => {
     const loadFieldAdmins = async () => {
       if (user?.role === 'super_admin' && token) {
         try {
-          const admins = await fetchUsers({ role: 'admin', admin_type: 'field_owner' }, token)
-          setFieldAdmins(admins || [])
+          const admins = await fetchUsers({ role: 'admin' }, token)
+          const fieldAdminsOnly = (admins || []).filter(
+            (a) => a.adminType === 'field' || a.adminType === 'field_owner'
+          )
+          setFieldAdmins(fieldAdminsOnly)
         } catch (error) {
           console.error('Error cargando admins:', error)
         }
@@ -86,8 +93,12 @@ const ReviewsManagementModule = () => {
           return false
         }
 
-        // Filtro por cancha seleccionada
-        if (selectedField !== 'all' && review.fieldId !== selectedField) {
+        // Filtro por cancha seleccionada.
+        // `selectedField` viene como string desde el <select>; `review.fieldId`
+        // llega como number (FK integer transformado en reviewsService).
+        // Sin la coerción a String la comparación siempre era distinta y el
+        // filtro escondía TODAS las reseñas al elegir una cancha.
+        if (selectedField !== 'all' && String(review.fieldId) !== String(selectedField)) {
           return false
         }
 
