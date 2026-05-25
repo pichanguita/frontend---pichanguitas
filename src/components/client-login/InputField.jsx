@@ -15,6 +15,9 @@ const InputField = ({
   showPassword,
   onTogglePassword,
   isResponsive = true,
+  badge,
+  badgeIcon: BadgeIcon,
+  badgeClassName = 'bg-green-100 text-green-700',
 }) => {
   const inputClasses = isResponsive
     ? 'w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base'
@@ -24,7 +27,17 @@ const InputField = ({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <label className="flex items-center flex-wrap gap-2 text-sm font-medium text-gray-700 mb-2">
+        <span>{label}</span>
+        {badge && (
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClassName}`}
+          >
+            {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
+            {badge}
+          </span>
+        )}
+      </label>
       <div className="relative">
         {Icon && (
           <Icon

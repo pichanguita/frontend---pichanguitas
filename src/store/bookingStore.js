@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DEFAULT_TIME_RANGES } from '../constants/booking'
+import { generateHourlyTimeRanges } from '../utils/timeSlots'
 
 // Importar módulos de acciones
 import {
@@ -59,7 +59,7 @@ const useBookingStore = create((set, get) => ({
   // Datos (se cargarán desde el backend)
   existingReservations: [],
   pendingRefunds: [], // Reembolsos pendientes del backend
-  timeRanges: DEFAULT_TIME_RANGES, // Horarios para filtrado inicial (constante UI)
+  timeRanges: generateHourlyTimeRanges(), // Dominio día completo; cada cancha se acota con su schedule
   paymentMethods: [], // Se cargan de la config de cada cancha
   adminClients: [],
 

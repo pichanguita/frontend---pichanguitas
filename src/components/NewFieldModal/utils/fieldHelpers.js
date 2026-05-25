@@ -101,7 +101,6 @@ export const buildFieldObject = (
 
     // El primer deporte como principal (para compatibilidad con campo sport_type)
     sportTypeId = sportIds.length > 0 ? sportIds[0] : null
-
   }
 
   // Construir objeto de equipamiento con todos los campos
@@ -130,6 +129,7 @@ export const buildFieldObject = (
     address: formData.address.trim(),
     phone: formatPhoneForSave(formData.phone),
     pricePerHour: formData.pricePerHour ? parseFloat(formData.pricePerHour) : 0,
+    requiresAdvancePayment: formData.requiresAdvancePayment || false,
     advancePaymentAmount: formData.advancePaymentAmount
       ? parseInt(formData.advancePaymentAmount)
       : 0,

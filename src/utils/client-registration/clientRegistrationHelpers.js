@@ -1,9 +1,51 @@
 import { parseLocalDate, getToday } from '../dateFormatters'
+import { isFieldUnderMaintenanceOnDate } from '../fieldMaintenance'
+import { slotIdForHour, generateDayTimeOptions, toMinutes } from '../timeSlots'
+
+const WEEK_DAY_LABELS_ES = {
+  monday: 'lunes',
+  tuesday: 'martes',
+  wednesday: 'miércoles',
+  thursday: 'jueves',
+  friday: 'viernes',
+  saturday: 'sábado',
+  sunday: 'domingo',
+}
+
+/**
+ * Obtiene la clave de día (monday..sunday) para una fecha YYYY-MM-DD, en
+ * hora local. Debe coincidir con la convención del backend (transformers.js:
+ * buildScheduleByDay) y de fieldStore.
+ */
+export const getFieldDayKey = (dateStr) => {
+  if (!dateStr) return null
+  try {
+    return parseLocalDate(dateStr)
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+export const getDayLabelEs = (dayKey) => WEEK_DAY_LABELS_ES[dayKey] || dayKey || ''
+
+/**
+ * Devuelve la configuración { isOpen, openTime, closeTime } de una cancha
+ * para una fecha dada. Convención: si la cancha no tiene schedule configurado
+ * (null) → se considera abierta sin restricción horaria.
+ */
+export const getFieldDaySchedule = (field, dateStr) => {
+  if (!field || !field.schedule) return null
+  const dayKey = getFieldDayKey(dateStr)
+  if (!dayKey) return null
+  return field.schedule[dayKey] || { isOpen: false }
+}
 
 /**
  * Genera array de IDs de slots basado en hora de inicio y cantidad de horas
  * Los IDs son strings como '6am', '7am', '12pm', '1pm', etc.
- * DEBE ser idéntico al backend (pricingCalculator.js)
+ * DEBE ser idéntico al backend (pricingCalculator.js) → usa slotIdForHour.
  * @param {string} startTime - Hora de inicio (HH:MM)
  * @param {number} hours - Cantidad de horas
  * @returns {Array<string>} Array de IDs de slots (ej: ['1pm', '2pm'])
@@ -15,31 +57,10 @@ export const generateSlotIds = (startTime, hours) => {
 
   const slotIds = []
   for (let i = 0; i < hours; i++) {
-    const hour = startHour + i
-    // Convertir hora numérica a formato de ID (6am, 7am, 12pm, 1pm, etc.)
-    let slotId
-    if (hour < 12) {
-      slotId = `${hour}am`
-    } else if (hour === 12) {
-      slotId = '12pm'
-    } else {
-      slotId = `${hour - 12}pm`
-    }
-    slotIds.push(slotId)
+    slotIds.push(slotIdForHour(startHour + i))
   }
 
   return slotIds
-}
-
-export const generateTimeOptions = () => {
-  const times = []
-  for (let hour = 8; hour <= 22; hour++) {
-    times.push(`${hour.toString().padStart(2, '0')}:00`)
-    if (hour < 22) {
-      times.push(`${hour.toString().padStart(2, '0')}:30`)
-    }
-  }
-  return times
 }
 
 /**
@@ -57,9 +78,32 @@ export const getFilteredTimeOptions = (
   selectedDate,
   occupiedSlots = [],
   mode = 'start',
-  startTime = null
+  startTime = null,
+  field = null
 ) => {
-  const allTimes = generateTimeOptions()
+  // Reglas por cancha: día cerrado, horario operativo y mantenimiento.
+  // Solo se aplican si la cancha está seleccionada (field truthy).
+  const daySchedule = field ? getFieldDaySchedule(field, selectedDate) : null
+  const isClosedDay = daySchedule ? daySchedule.isOpen === false : false
+  const openMinutes = daySchedule ? toMinutes(daySchedule.openTime) : null
+  const closeMinutes = daySchedule ? toMinutes(daySchedule.closeTime) : null
+  const underMaintenance = field ? isFieldUnderMaintenanceOnDate(field, selectedDate) : false
+
+  // Dominio = día completo a la granularidad estándar. Las cotas exactas de
+  // apertura/cierre (p. ej. 23:59) se añaden como candidatos para respetar el
+  // horario real configurado aunque no caigan en la grilla.
+  const allTimes = (() => {
+    const grid = generateDayTimeOptions()
+    const extras = []
+    if (daySchedule && daySchedule.isOpen !== false) {
+      const open = daySchedule.openTime ? daySchedule.openTime.slice(0, 5) : null
+      const close = daySchedule.closeTime ? daySchedule.closeTime.slice(0, 5) : null
+      if (open) extras.push(open)
+      if (close) extras.push(close)
+    }
+    return Array.from(new Set([...grid, ...extras])).sort((a, b) => toMinutes(a) - toMinutes(b))
+  })()
+
   const today = getToday()
   const isToday = selectedDate === today
 
@@ -92,14 +136,26 @@ export const getFilteredTimeOptions = (
     let disabled = false
     let reason = ''
 
+    // 0. Mantenimiento programado: bloquea todo
+    if (!disabled && underMaintenance) {
+      disabled = true
+      reason = 'Cancha en mantenimiento'
+    }
+
+    // 0.b Día cerrado por horario de la cancha
+    if (!disabled && isClosedDay) {
+      disabled = true
+      reason = 'Cancha cerrada este día'
+    }
+
     // 1. Filtrar horas pasadas si es HOY
-    if (isToday && timeInMinutes < currentTimeInMinutes) {
+    if (!disabled && isToday && timeInMinutes < currentTimeInMinutes) {
       disabled = true
       reason = 'Hora pasada'
     }
 
     // 2. Para hora de fin: debe ser mayor que hora de inicio
-    if (mode === 'end' && startTime) {
+    if (!disabled && mode === 'end' && startTime) {
       const [startHour, startMin] = startTime.split(':').map(Number)
       const startTimeInMinutes = startHour * 60 + startMin
       if (timeInMinutes <= startTimeInMinutes) {
@@ -108,7 +164,30 @@ export const getFilteredTimeOptions = (
       }
     }
 
-    // 3. Filtrar horas ocupadas
+    // 3. Respetar horario operativo de la cancha (openTime/closeTime)
+    if (!disabled && daySchedule && daySchedule.isOpen !== false) {
+      if (mode === 'start' && openMinutes != null && timeInMinutes < openMinutes) {
+        disabled = true
+        reason = `Abre a las ${daySchedule.openTime?.slice(0, 5)}`
+      }
+      // Para inicio: tampoco puede empezar igual o después del cierre
+      if (mode === 'start' && closeMinutes != null && timeInMinutes >= closeMinutes) {
+        disabled = true
+        reason = `Cierra a las ${daySchedule.closeTime?.slice(0, 5)}`
+      }
+      // Para fin: no puede superar la hora de cierre
+      if (mode === 'end' && closeMinutes != null && timeInMinutes > closeMinutes) {
+        disabled = true
+        reason = `Cierra a las ${daySchedule.closeTime?.slice(0, 5)}`
+      }
+      // Para fin: tampoco puede ser anterior o igual a apertura
+      if (mode === 'end' && openMinutes != null && timeInMinutes <= openMinutes) {
+        disabled = true
+        reason = `Abre a las ${daySchedule.openTime?.slice(0, 5)}`
+      }
+    }
+
+    // 4. Filtrar horas ocupadas
     if (!disabled) {
       for (const range of occupiedRanges) {
         const [rangeStartHour, rangeStartMin] = range.start.split(':').map(Number)
@@ -203,7 +282,7 @@ export const validateClientData = (formData, _mode) => {
   return errors
 }
 
-export const validateReservationData = (formData) => {
+export const validateReservationData = (formData, field = null) => {
   const errors = {}
 
   if (!formData.fieldId) {
@@ -227,12 +306,41 @@ export const validateReservationData = (formData) => {
     }
   }
 
+  // ✅ Validar contra el horario operativo de la cancha (field.schedule)
+  // y contra mantenimientos programados. Debe coincidir con la validación
+  // del backend (utils/fieldSchedule.js → validateReservationAgainstSchedule)
+  // para evitar que el modal envíe reservas que el backend rechazará.
+  if (field && formData.date && !errors.date) {
+    if (isFieldUnderMaintenanceOnDate(field, formData.date)) {
+      errors.date = 'La cancha está en mantenimiento en esa fecha'
+    } else {
+      const daySchedule = getFieldDaySchedule(field, formData.date)
+      if (daySchedule && daySchedule.isOpen === false) {
+        const dayLabel = getDayLabelEs(getFieldDayKey(formData.date))
+        errors.date = `Esta cancha no opera los ${dayLabel}. Selecciona otro día.`
+      } else if (daySchedule && daySchedule.isOpen !== false) {
+        const openMin = toMinutes(daySchedule.openTime)
+        const closeMin = toMinutes(daySchedule.closeTime)
+        const startMin = toMinutes(formData.startTime)
+        const endMin = toMinutes(formData.endTime)
+        const dayLabel = getDayLabelEs(getFieldDayKey(formData.date))
+
+        if (startMin != null && openMin != null && startMin < openMin) {
+          errors.startTime = `La cancha abre a las ${daySchedule.openTime?.slice(0, 5)} los ${dayLabel}.`
+        }
+        if (endMin != null && closeMin != null && endMin > closeMin) {
+          errors.endTime = `La cancha cierra a las ${daySchedule.closeTime?.slice(0, 5)} los ${dayLabel}.`
+        }
+      }
+    }
+  }
+
   if (!formData.startTime) {
-    errors.startTime = 'Debe seleccionar hora de inicio'
+    errors.startTime = errors.startTime || 'Debe seleccionar hora de inicio'
   }
 
   if (!formData.endTime) {
-    errors.endTime = 'Debe seleccionar hora de fin'
+    errors.endTime = errors.endTime || 'Debe seleccionar hora de fin'
   }
 
   if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime) {

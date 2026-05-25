@@ -16,7 +16,6 @@ export * from './alertTypes'
 
 // Reservas
 export * from './reservationStatus'
-export * from './booking'
 
 // Pagos
 export * from './paymentStatus'

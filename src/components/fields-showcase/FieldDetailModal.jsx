@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { X, MapPin } from 'lucide-react'
-import { getFieldImage } from '../../data/fieldImages'
+import { getFieldImage, handleFieldImageError } from '../../data/fieldImages'
 import StatusBadge from './StatusBadge'
 import ModalBasicInfo from './modal/ModalBasicInfo'
 import ModalLocation from './modal/ModalLocation'
@@ -33,13 +33,7 @@ const FieldDetailModal = ({ field, onClose }) => {
             alt={field.name}
             className="w-full h-64 object-cover rounded-t-2xl"
             loading="lazy"
-            onError={(e) => {
-              e.target.src = getFieldImage(field.sportType || 'multiuso', field.id)
-              e.target.onerror = (e2) => {
-                e2.target.src = '/maquetacion/CampoFutbol.png'
-                e2.target.onerror = null
-              }
-            }}
+            onError={handleFieldImageError}
           />
           <button
             onClick={onClose}

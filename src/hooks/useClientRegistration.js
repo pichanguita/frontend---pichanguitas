@@ -12,7 +12,11 @@ import {
   validateClientData,
   validateReservationData,
   formatOccupiedSlots,
+  getFieldDaySchedule,
+  getFieldDayKey,
+  getDayLabelEs,
 } from '../utils/client-registration/clientRegistrationHelpers'
+import { isFieldUnderMaintenanceOnDate } from '../utils/fieldMaintenance'
 import { toISODateString } from '../utils/dateFormatters'
 
 export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => {
@@ -65,6 +69,20 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user?.id, user?.role, user?.adminType, user?.id_rol, user?.managedFields])
 
+  // ✅ Cancha actualmente seleccionada (con normalización de tipo: el <select>
+  // devuelve string, mientras `field.id` viene como número del backend).
+  // Centralizar aquí evita inconsistencias entre los distintos useEffect y submit.
+  const selectedField = useMemo(() => {
+    if (!formData.fieldId) return null
+    const fieldIdNum = parseInt(formData.fieldId, 10)
+    return (
+      visibleFields.find(
+        // eslint-disable-next-line eqeqeq
+        (f) => f.id === fieldIdNum || f.id == formData.fieldId
+      ) || null
+    )
+  }, [formData.fieldId, visibleFields])
+
   // ✅ Cargar clientes desde el backend cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
@@ -101,9 +119,6 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
     if (formData.startTime && formData.endTime && formData.fieldId && formData.date) {
       const duration = calculateDuration(formData.startTime, formData.endTime)
       if (duration > 0) {
-        const fieldIdNum = parseInt(formData.fieldId)
-        const selectedField = visibleFields.find((f) => f.id === fieldIdNum)
-
         if (selectedField) {
           // Generar slotIds igual que el backend (ej: ["1pm", "2pm"])
           const slotIds = generateSlotIds(formData.startTime, duration)
@@ -162,7 +177,7 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
     formData.date,
     formData.paymentStatus,
     formData.advanceAmount,
-    visibleFields,
+    selectedField,
   ])
 
   const handleInputChange = (e) => {
@@ -177,13 +192,46 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
 
     // ✅ Lógica inteligente de reseteo de horarios
     if (name === 'date') {
+      // 🚫 BLOQUEAR fechas en las que la cancha no opera o está en mantenimiento.
+      // El <input type="date"> nativo no permite deshabilitar días específicos, así
+      // que interceptamos el cambio: si cae en día cerrado / mantenimiento de la
+      // cancha actualmente seleccionada, mostramos aviso y NO aplicamos el cambio.
+      if (selectedField && value) {
+        if (isFieldUnderMaintenanceOnDate(selectedField, value)) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Cancha en mantenimiento',
+            text: `${selectedField.name} está en mantenimiento en la fecha seleccionada.`,
+            confirmButtonColor: '#22c55e',
+          })
+          return
+        }
+        const daySchedule = getFieldDaySchedule(selectedField, value)
+        if (daySchedule && daySchedule.isOpen === false) {
+          const dayLabel = getDayLabelEs(getFieldDayKey(value))
+          Swal.fire({
+            icon: 'warning',
+            title: 'Día no disponible',
+            text: `${selectedField.name} no opera los ${dayLabel}. Selecciona otro día.`,
+            confirmButtonColor: '#22c55e',
+          })
+          return
+        }
+      }
+
       // Al cambiar fecha, verificar si startTime y endTime siguen siendo válidos
       setFormData((prev) => {
         const newState = { ...prev, [name]: value }
 
         // Si hay startTime, verificar que siga siendo válido para la nueva fecha
         if (prev.startTime && value) {
-          const validStartTimes = getFilteredTimeOptions(value, occupiedSlots, 'start', null)
+          const validStartTimes = getFilteredTimeOptions(
+            value,
+            occupiedSlots,
+            'start',
+            null,
+            selectedField
+          )
           const startTimeOption = validStartTimes.find((opt) => opt.time === prev.startTime)
           if (!startTimeOption || startTimeOption.disabled) {
             // startTime ya no es válido, resetear
@@ -210,14 +258,52 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
     }
 
     if (name === 'fieldId') {
-      // Al cambiar cancha, resetear horarios porque los ocupados cambian
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        startTime: '',
-        endTime: '',
-        duration: 0,
-      }))
+      // Al cambiar cancha, resetear horarios porque los ocupados cambian.
+      // 🚫 Además, si la fecha actual cae en día cerrado o mantenimiento de la
+      // nueva cancha, limpiar la fecha también y avisar (no tiene sentido
+      // dejarla porque luego el submit se bloquearía).
+      const newField = value
+        ? visibleFields.find(
+            // eslint-disable-next-line eqeqeq
+            (f) => f.id === parseInt(value, 10) || f.id == value
+          )
+        : null
+
+      let dateInvalidReason = null
+      setFormData((prev) => {
+        const newState = {
+          ...prev,
+          [name]: value,
+          startTime: '',
+          endTime: '',
+          duration: 0,
+        }
+
+        if (newField && prev.date) {
+          if (isFieldUnderMaintenanceOnDate(newField, prev.date)) {
+            dateInvalidReason = `${newField.name} está en mantenimiento en ${prev.date}.`
+            newState.date = ''
+          } else {
+            const ds = getFieldDaySchedule(newField, prev.date)
+            if (ds && ds.isOpen === false) {
+              const dayLabel = getDayLabelEs(getFieldDayKey(prev.date))
+              dateInvalidReason = `${newField.name} no opera los ${dayLabel}. Selecciona otra fecha.`
+              newState.date = ''
+            }
+          }
+        }
+
+        return newState
+      })
+
+      if (dateInvalidReason) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Día no disponible',
+          text: dateInvalidReason,
+          confirmButtonColor: '#22c55e',
+        })
+      }
       return
     }
 
@@ -267,7 +353,10 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
 
   const validateForm = () => {
     const clientErrors = validateClientData(formData, clientSelectionMode)
-    const reservationErrors = validateReservationData(formData)
+    // ✅ Pasar la cancha seleccionada para validar contra su horario operativo
+    // (field.schedule) y mantenimientos. Esto evita que se envíe al backend
+    // una reserva que será rechazada con 409 (FIELD_CLOSED_ON_DAY, etc.).
+    const reservationErrors = validateReservationData(formData, selectedField)
 
     const allErrors = { ...clientErrors, ...reservationErrors }
     setErrors(allErrors)
@@ -284,8 +373,6 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
     setIsLoading(true)
 
     try {
-      const selectedField = visibleFields.find((f) => f.id === formData.fieldId)
-
       // ✅ INTEGRACIÓN CON BACKEND: Buscar o crear cliente en el backend
       const { getCustomerByPhoneAPI, createCustomerAPI } = useCustomerStore.getState()
       const token = useAuthStore.getState().token
@@ -401,6 +488,7 @@ export const useClientRegistration = (selectedDate, isOpen, onSave, onClose) => 
     clientSelectionMode,
     selectedCustomerId,
     visibleFields,
+    selectedField,
     handleInputChange,
     handleClientModeChange,
     handleSelectCustomer,

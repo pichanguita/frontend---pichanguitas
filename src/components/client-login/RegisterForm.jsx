@@ -1,5 +1,5 @@
 import React from 'react'
-import { User, CreditCard, Phone, Mail, Info } from 'lucide-react'
+import { User, CreditCard, Phone, Mail, Info, KeyRound, UserCircle } from 'lucide-react'
 import InputField from './InputField'
 
 const RegisterForm = ({ registerData, setRegisterData, errors, isLoading, onSubmit }) => {
@@ -40,6 +40,9 @@ const RegisterForm = ({ registerData, setRegisterData, errors, isLoading, onSubm
         maxLength={8}
         helpText="Debe tener 8 dígitos"
         isResponsive={false}
+        badge="Será tu contraseña"
+        badgeIcon={KeyRound}
+        badgeClassName="bg-amber-100 text-amber-700"
       />
 
       <InputField
@@ -58,6 +61,9 @@ const RegisterForm = ({ registerData, setRegisterData, errors, isLoading, onSubm
         maxLength={9}
         helpText="Debe comenzar con 9 y tener 9 dígitos"
         isResponsive={false}
+        badge="Será tu usuario"
+        badgeIcon={UserCircle}
+        badgeClassName="bg-green-100 text-green-700"
       />
 
       <InputField

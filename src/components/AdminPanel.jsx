@@ -57,11 +57,7 @@ const AdminPanel = () => {
   // bookingStore lo expone vía getter y el spread operator que arma el store
   // pierde los getters: el valor queda congelado en [] al inicializar y
   // loadSportTypes() actualiza fieldStore, no bookingStore.
-  const {
-    updateFieldLocal,
-    fields: fieldStoreFields,
-    sportTypes = [],
-  } = useFieldStore()
+  const { updateFieldLocal, fields: fieldStoreFields, sportTypes = [] } = useFieldStore()
 
   // Hook for centralized modal management
   const { modals, openModal, closeModal } = useModalManager([
@@ -93,6 +89,8 @@ const AdminPanel = () => {
     selectedUser,
     selectedDate,
     selectedDayReservations,
+    dayFieldFilter,
+    dayVisibleFieldIds,
     handleLogout,
     handleEditField,
     handleConfigField,
@@ -349,6 +347,8 @@ const AdminPanel = () => {
         selectedUser={selectedUser}
         selectedDate={selectedDate}
         selectedDayReservations={selectedDayReservations}
+        dayFieldFilter={dayFieldFilter}
+        dayVisibleFieldIds={dayVisibleFieldIds}
         fields={fields}
         handlers={{
           handleNewField,

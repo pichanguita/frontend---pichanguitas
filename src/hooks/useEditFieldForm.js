@@ -696,7 +696,9 @@ export const useEditFieldForm = (isOpen, field, onSave, onClose) => {
         advance_payment_amount: formData.advancePaymentAmount
           ? parseFloat(formData.advancePaymentAmount)
           : 0,
-        is_active: formData.isActive,
+        // is_active se deriva de status (invariante): evita la divergencia
+        // "Disponible pero inactiva" que ocultaba canchas en la búsqueda.
+        is_active: !['inactive', 'closed', 'deleted', 'unavailable'].includes(formData.status),
         is_multi_sport: cleanSportTypes.length > 1,
 
         // Dimensiones de la cancha

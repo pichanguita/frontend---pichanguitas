@@ -101,23 +101,31 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
     const loadInitialData = async () => {
       try {
         const fieldStore = useFieldStore.getState()
-        await Promise.all([
+        const tasks = [
           // Solo cargar canchas activas y aprobadas para la landing page
           fieldStore.loadFields({
             is_active: true,
             approval_status: 'approved',
           }),
           fieldStore.loadSportTypes(),
-          loadReservations(), // Cargar reservas para validar disponibilidad de horarios
           loadDepartments(), // Cargar departamentos que tienen canchas registradas
-        ])
-        console.log('✅ Canchas, deportes, reservas y departamentos cargados para reservas')
+        ]
+        // GET /api/reservations exige autenticación. Para usuarios públicos
+        // (landing page sin login), useFieldAvailability ya consulta los slots
+        // ocupados por cancha vía fetchPublicFieldAvailability, así que NO
+        // debemos disparar loadReservations() — disparaba 401 "Token no
+        // proporcionado" y el authInterceptor redirigía al /login.
+        if (userIsAuthenticated) {
+          tasks.push(loadReservations())
+        }
+        await Promise.all(tasks)
+        console.log('✅ Canchas, deportes y departamentos cargados para reservas')
       } catch (error) {
         console.error('❌ Error cargando datos iniciales:', error)
       }
     }
     loadInitialData()
-  }, [loadReservations, loadDepartments]) // Solo ejecutar una vez al montar
+  }, [loadReservations, loadDepartments, userIsAuthenticated]) // Solo ejecutar una vez al montar
 
   // Custom hooks
   const calendar = useBookingCalendar(selectedDate)

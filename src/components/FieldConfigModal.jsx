@@ -1,7 +1,7 @@
 import React from 'react'
 import { Clock, Wrench, DollarSign, Ban, Settings } from 'lucide-react'
-import useBookingStore from '../store/bookingStore'
 import useFieldConfig from '../hooks/useFieldConfig'
+import { generateScheduleTimeRanges } from '../utils/timeSlots'
 import {
   daysOfWeek,
   fieldTypes,
@@ -16,8 +16,6 @@ import CancellationTab from './field-config/tabs/CancellationTab'
 import GeneralTab from './field-config/tabs/GeneralTab'
 
 const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
-  const { timeRanges } = useBookingStore()
-
   const {
     config,
     activeTab,
@@ -43,6 +41,10 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
   } = useFieldConfig(field, isOpen, onClose, onSave)
 
   if (!isOpen || !field) return null
+
+  // Horarios ofrecidos en Precios Especiales = horas en que la cancha abre,
+  // derivadas del schedule en edición (sin hardcodeo; refleja la config real).
+  const pricingTimeRanges = generateScheduleTimeRanges(config.schedule)
 
   const tabs = [
     { id: 'schedule', label: 'Horarios', icon: Clock },
@@ -83,7 +85,7 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
         {activeTab === 'pricing' && (
           <PricingTab
             specialPricing={config.specialPricing}
-            timeRanges={timeRanges}
+            timeRanges={pricingTimeRanges}
             daysOfWeek={daysOfWeek}
             onAdd={handleAddSpecialPrice}
             onUpdate={handleUpdateSpecialPrice}

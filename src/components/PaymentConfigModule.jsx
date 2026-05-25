@@ -222,11 +222,11 @@ const PaymentConfigModule = () => {
       return
     }
 
-    if (editForm.dueDay < 1 || editForm.dueDay > 28) {
+    if (editForm.dueDay < 1 || editForm.dueDay > 31) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'El día de vencimiento debe estar entre 1 y 28',
+        text: 'El día de vencimiento debe estar entre 1 y 31',
       })
       return
     }
@@ -382,7 +382,8 @@ const PaymentConfigModule = () => {
                 • Configura el <strong>monto mensual</strong> que cada cancha debe pagar
               </li>
               <li>
-                • Define el <strong>día de vencimiento</strong> (recomendado: entre 1 y 28)
+                • Define el <strong>día de vencimiento</strong> (entre 1 y 31; en meses más
+                cortos se ajusta automáticamente al último día)
               </li>
               <li>• Activa el cobro cuando esté listo</li>
               <li>• Los pagos se generarán automáticamente cada mes</li>
@@ -516,7 +517,7 @@ const PaymentConfigModule = () => {
                             onChange={(e) => setEditForm({ ...editForm, dueDay: e.target.value })}
                             className="w-16 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             min="1"
-                            max="28"
+                            max="31"
                           />
                           <span className="text-sm text-gray-500">de cada mes</span>
                         </div>

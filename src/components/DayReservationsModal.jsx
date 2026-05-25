@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X,
   Calendar,
@@ -13,9 +13,13 @@ import {
   AlertCircle,
   Ban,
   AlertTriangle,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
+import useFieldStore from '../store/modules/fieldStore'
 import Swal from 'sweetalert2'
 
 /**
@@ -70,9 +74,48 @@ const isExpiredPendingReservation = (reservation) => {
   return reservationStart < now
 }
 
-const DayReservationsModal = ({ isOpen, onClose, date, fields }) => {
+/**
+ * Convierte la hora de inicio de una reserva a minutos desde medianoche.
+ * Sirve para ordenar las reservas del día por horario.
+ * @param {Object} reservation
+ * @returns {number}
+ */
+const getStartMinutes = (reservation) => {
+  const t = reservation.startTime || reservation.start_time
+  if (!t) return 0
+  const [h, m] = t.split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+const DayReservationsModal = ({
+  isOpen,
+  onClose,
+  date,
+  fields,
+  fieldFilter = null,
+  visibleFieldIds = null,
+}) => {
   const { cancelReservationAPI, existingReservations } = useBookingStore()
+  // Las canchas se leen del fieldStore (fuente real). La prop `fields` proviene de
+  // un getter del bookingStore que el spread del store deja congelado en [].
+  const storeFields = useFieldStore((s) => s.fields)
   const [cancellingId, setCancellingId] = useState(null)
+  // Orden por hora de inicio: 'desc' (más tarde primero) por defecto, alternable a 'asc'.
+  const [sortDir, setSortDir] = useState('desc')
+
+  // Cancha activa dentro del modal. null = mostrar la vista de selección de canchas.
+  // Si el modal se abrió con un filtro de cancha previo, arranca directo en esa cancha.
+  const [activeFieldId, setActiveFieldId] = useState(fieldFilter)
+
+  // Si hubo filtro previo, se omite el paso intermedio de selección de cancha.
+  const hadPreFilter = fieldFilter !== null && fieldFilter !== undefined
+
+  // Sincronizar la cancha activa cada vez que se abre el modal o cambia el filtro previo.
+  useEffect(() => {
+    if (isOpen) {
+      setActiveFieldId(fieldFilter ?? null)
+    }
+  }, [isOpen, fieldFilter])
 
   // Derivar reservas del día directamente del store para reactividad automática
   const reservations = React.useMemo(() => {
@@ -85,17 +128,63 @@ const DayReservationsModal = ({ isOpen, onClose, date, fields }) => {
     })
   }, [date, existingReservations])
 
+  // Canchas a mostrar en la vista de selección (respeta permisos y filtros activos).
+  const fieldsToShow = React.useMemo(() => {
+    const base = Array.isArray(storeFields) && storeFields.length > 0 ? storeFields : fields || []
+    if (Array.isArray(visibleFieldIds)) {
+      const idSet = new Set(visibleFieldIds.map((id) => parseInt(id, 10)))
+      return base.filter((f) => idSet.has(parseInt(f.id, 10)))
+    }
+    return base
+  }, [storeFields, fields, visibleFieldIds])
+
+  // Reservas mostradas según la cancha activa (todas las del día si no hay cancha activa).
+  const displayedReservations = React.useMemo(() => {
+    if (activeFieldId === null || activeFieldId === undefined) return reservations
+    const target = parseInt(activeFieldId, 10)
+    return reservations.filter((r) => {
+      const raw = r.fieldId ?? r.field_id
+      return raw !== null && raw !== undefined && parseInt(raw, 10) === target
+    })
+  }, [reservations, activeFieldId])
+
+  // Reservas ordenadas por hora de inicio según la dirección elegida.
+  const sortedReservations = React.useMemo(() => {
+    const arr = [...displayedReservations]
+    arr.sort((a, b) => {
+      const diff = getStartMinutes(a) - getStartMinutes(b)
+      return sortDir === 'asc' ? diff : -diff
+    })
+    return arr
+  }, [displayedReservations, sortDir])
+
   if (!isOpen) return null
+
+  // Fuente resuelta de canchas: fieldStore si tiene datos, si no la prop como respaldo.
+  const resolvedFields =
+    Array.isArray(storeFields) && storeFields.length > 0 ? storeFields : fields || []
+
+  // Normaliza el id de cancha de una reserva (puede venir camelCase o snake_case).
+  const getReservationFieldId = (reservation) => {
+    const raw = reservation.fieldId ?? reservation.field_id
+    return raw === null || raw === undefined ? null : parseInt(raw, 10)
+  }
+
+  // Cancha actualmente seleccionada (para mostrar su nombre en el encabezado).
+  const activeField =
+    activeFieldId !== null && activeFieldId !== undefined
+      ? resolvedFields.find((f) => parseInt(f.id, 10) === parseInt(activeFieldId, 10))
+      : null
 
   const getFieldName = (reservation) => {
     // Primero intentar usar fieldName de la reserva (viene del backend)
     if (reservation.fieldName || reservation.field_name) {
       return reservation.fieldName || reservation.field_name
     }
-    // Si no, buscar en el array de fields
+    // Si no, buscar en la fuente resuelta de canchas
     const fieldId = reservation.fieldId || reservation.field_id
-    if (fields && fields.length > 0 && fieldId) {
-      const field = fields.find((f) => f.id === fieldId || f.id === parseInt(fieldId))
+    if (resolvedFields.length > 0 && fieldId) {
+      const field = resolvedFields.find((f) => f.id === fieldId || f.id === parseInt(fieldId))
       if (field) return field.name
     }
     return 'Campo desconocido'
@@ -217,7 +306,7 @@ const DayReservationsModal = ({ isOpen, onClose, date, fields }) => {
     'pendiente',
   ]
 
-  const confirmedReservations = reservations.filter((r) => {
+  const confirmedReservations = displayedReservations.filter((r) => {
     const status = r.status?.toLowerCase?.()?.trim() || ''
     return activeStatuses.includes(status)
   })
@@ -312,6 +401,7 @@ const DayReservationsModal = ({ isOpen, onClose, date, fields }) => {
                 <h2 className="text-xl font-bold text-white">Reservas del Día</h2>
                 <p className="text-sm text-white/90">
                   {date ? formatDate(date) : 'Fecha no especificada'}
+                  {activeField ? ` · ${activeField.name}` : ''}
                 </p>
               </div>
             </div>
@@ -330,7 +420,9 @@ const DayReservationsModal = ({ isOpen, onClose, date, fields }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-secondary-600 font-medium">Total Reservas</p>
-                    <p className="text-2xl font-bold text-secondary-900">{reservations.length}</p>
+                    <p className="text-2xl font-bold text-secondary-900">
+                      {displayedReservations.length}
+                    </p>
                   </div>
                   <Calendar className="w-8 h-8 text-blue-500" />
                 </div>
@@ -360,234 +452,348 @@ const DayReservationsModal = ({ isOpen, onClose, date, fields }) => {
             </div>
           </div>
 
-          {/* Reservations List */}
+          {/* Contenido: selección de cancha o reservas de la cancha activa */}
           <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-280px)]">
-            {reservations.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
-                <p className="text-lg font-medium text-secondary-600">
-                  No hay reservas para este día
-                </p>
-                <p className="text-sm text-secondary-500 mt-1">
-                  Selecciona otro día para ver las reservas
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {reservations.map((reservation, index) => {
-                  const statusInfo = getStatusInfo(reservation.status, reservation)
-                  const StatusIcon = statusInfo.icon
-                  const isExpired = statusInfo.isExpired
-
-                  return (
-                    <motion.div
-                      key={reservation.id || index}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className={`rounded-xl p-4 transition-shadow relative ${
-                        isExpired
-                          ? 'bg-red-50 border-2 border-red-500 shadow-lg ring-2 ring-red-300 ring-opacity-50'
-                          : reservation.status === 'cancelled'
-                            ? 'bg-red-50 border-2 border-red-300 opacity-75'
-                            : 'bg-white border border-secondary-200 hover:shadow-md'
-                      }`}
-                    >
-                      {/* Alerta visual para reservas pendientes vencidas */}
-                      {isExpired && (
-                        <div className="absolute -top-3 left-4 right-4">
-                          <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1 animate-pulse shadow-lg">
-                            <AlertTriangle className="w-3 h-3" />
-                            <span>¡ATENCIÓN REQUERIDA! - Reserva pendiente vencida</span>
-                          </div>
-                        </div>
-                      )}
-
-                      <div
-                        className={`flex items-start justify-between mb-3 ${isExpired ? 'mt-2' : ''}`}
+            {activeFieldId === null ? (
+              fieldsToShow.length === 0 ? (
+                <div className="text-center py-12">
+                  <MapPin className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-secondary-600">
+                    No hay canchas disponibles
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {fieldsToShow.map((field) => {
+                    const count = reservations.filter(
+                      (r) => getReservationFieldId(r) === parseInt(field.id, 10)
+                    ).length
+                    return (
+                      <button
+                        key={field.id}
+                        onClick={() => setActiveFieldId(field.id)}
+                        className="flex items-center justify-between gap-3 p-4 rounded-xl border border-secondary-200 bg-white hover:border-primary-400 hover:shadow-md transition-all text-left"
                       >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              isExpired ? 'bg-red-200' : 'bg-primary-100'
-                            }`}
-                          >
-                            <MapPin
-                              className={`w-5 h-5 ${isExpired ? 'text-red-600' : 'text-primary-600'}`}
-                            />
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <MapPin className="w-5 h-5 text-primary-600" />
                           </div>
-                          <div>
-                            <h4
-                              className={`font-semibold ${isExpired ? 'text-red-900' : 'text-secondary-900'}`}
-                            >
-                              {getFieldName(reservation)}
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-secondary-900 truncate">
+                              {field.name}
                             </h4>
-                            <p
-                              className={`text-sm flex items-center gap-1 mt-0.5 ${isExpired ? 'text-red-700 font-medium' : 'text-secondary-600'}`}
-                            >
-                              <Clock className="w-3 h-3" />
-                              {formatTime(reservation)}
-                              {isExpired && <span className="ml-1">(Ya pasó)</span>}
-                            </p>
+                            {field.location && (
+                              <p className="text-xs text-secondary-500 truncate">
+                                {field.location}
+                              </p>
+                            )}
                           </div>
                         </div>
-
-                        <div
-                          className={`flex items-center gap-1 px-3 py-1 rounded-full ${statusInfo.bg} ${isExpired ? 'animate-pulse' : ''}`}
+                        <span
+                          className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${
+                            count > 0
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-secondary-100 text-secondary-500'
+                          }`}
                         >
-                          <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
-                          <span className={`text-xs font-medium ${statusInfo.color}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pt-3 border-t border-secondary-100">
-                        <div className="flex items-center gap-2 text-sm text-secondary-700">
-                          <User className="w-4 h-4 text-secondary-500" />
-                          <span className="font-medium">
-                            {reservation.customerName ||
-                              reservation.customer_name ||
-                              'Cliente no especificado'}
-                          </span>
-                        </div>
-
-                        {(reservation.customerPhone || reservation.customer_phone) && (
-                          <div className="flex items-center gap-2 text-sm text-secondary-700">
-                            <Phone className="w-4 h-4 text-secondary-500" />
-                            <span>{reservation.customerPhone || reservation.customer_phone}</span>
-                          </div>
+                          {count} {count === 1 ? 'reserva' : 'reservas'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            ) : (
+              <>
+                {(!hadPreFilter || displayedReservations.length > 0) && (
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    {!hadPreFilter ? (
+                      <button
+                        onClick={() => setActiveFieldId(null)}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Volver a canchas
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                    {displayedReservations.length > 0 && (
+                      <button
+                        onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+                        title="Ordenar por hora de inicio"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-secondary-600 hover:text-secondary-900 px-2.5 py-1.5 rounded-lg border border-secondary-200 hover:bg-secondary-50 transition-colors"
+                      >
+                        {sortDir === 'desc' ? (
+                          <ArrowDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUp className="w-4 h-4" />
                         )}
+                        {sortDir === 'desc' ? 'Más tarde primero' : 'Más temprano primero'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {displayedReservations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
+                    <p className="text-lg font-medium text-secondary-600">
+                      No hay reservas para esta cancha este día
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sortedReservations.map((reservation, index) => {
+                      const statusInfo = getStatusInfo(reservation.status, reservation)
+                      const StatusIcon = statusInfo.icon
+                      const isExpired = statusInfo.isExpired
 
-                        {reservation.customerEmail && (
-                          <div className="flex items-center gap-2 text-sm text-secondary-700">
-                            <Mail className="w-4 h-4 text-secondary-500" />
-                            <span>{reservation.customerEmail}</span>
-                          </div>
-                        )}
+                      return (
+                        <motion.div
+                          key={reservation.id || index}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className={`rounded-xl p-4 transition-shadow relative ${
+                            isExpired
+                              ? 'bg-red-50 border-2 border-red-500 shadow-lg ring-2 ring-red-300 ring-opacity-50'
+                              : reservation.status === 'cancelled'
+                                ? 'bg-red-50 border-2 border-red-300 opacity-75'
+                                : 'bg-white border border-secondary-200 hover:shadow-md'
+                          }`}
+                        >
+                          {/* Alerta visual para reservas pendientes vencidas */}
+                          {isExpired && (
+                            <div className="absolute -top-3 left-4 right-4">
+                              <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1 animate-pulse shadow-lg">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>¡ATENCIÓN REQUERIDA! - Reserva pendiente vencida</span>
+                              </div>
+                            </div>
+                          )}
 
-                        {(reservation.totalPrice || reservation.total_price) && (
-                          <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
-                            <DollarSign className="w-4 h-4 text-green-600" />
-                            <span>
-                              S/ {(reservation.totalPrice || reservation.total_price).toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {reservation.notes && (
-                        <div className="mt-3 pt-3 border-t border-secondary-100">
-                          <p className="text-sm text-secondary-600">
-                            <span className="font-medium">Notas:</span> {reservation.notes}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Mensaje de alerta para reservas pendientes vencidas */}
-                      {isExpired && (
-                        <div className="mt-3 pt-3 border-t border-red-200">
-                          <div className="bg-red-100 border border-red-300 rounded-lg p-3">
-                            <div className="flex items-start gap-2">
-                              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div
+                            className={`flex items-start justify-between mb-3 ${isExpired ? 'mt-2' : ''}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  isExpired ? 'bg-red-200' : 'bg-primary-100'
+                                }`}
+                              >
+                                <MapPin
+                                  className={`w-5 h-5 ${isExpired ? 'text-red-600' : 'text-primary-600'}`}
+                                />
+                              </div>
                               <div>
-                                <p className="text-sm font-semibold text-red-800">
-                                  Reserva pendiente vencida
-                                </p>
-                                <p className="text-xs text-red-700 mt-1">
-                                  Esta reserva nunca fue confirmada y ya pasó su horario programado.
-                                  Considera cancelarla o marcarla como "No asistió".
+                                <h4
+                                  className={`font-semibold ${isExpired ? 'text-red-900' : 'text-secondary-900'}`}
+                                >
+                                  {getFieldName(reservation)}
+                                </h4>
+                                <p
+                                  className={`text-sm flex items-center gap-1 mt-0.5 ${isExpired ? 'text-red-700 font-medium' : 'text-secondary-600'}`}
+                                >
+                                  <Clock className="w-3 h-3" />
+                                  {formatTime(reservation)}
+                                  {isExpired && <span className="ml-1">(Ya pasó)</span>}
                                 </p>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      )}
 
-                      {/* Botón de Cancelar - Mostrar si está pendiente, confirmada, o es una reserva vencida */}
-                      {(() => {
-                        // Estados que no permiten cancelar
-                        const nonCancellableStatuses = ['cancelled', 'completed', 'no_show']
-                        if (nonCancellableStatuses.includes(reservation.status)) return null
-
-                        // Si es una reserva vencida, SIEMPRE mostrar el botón
-                        if (isExpired) {
-                          return (
-                            <div className="mt-3 pt-3 border-t border-red-200">
-                              <button
-                                onClick={() => handleCancelReservation(reservation)}
-                                disabled={cancellingId === reservation.id}
-                                className={`w-full py-2 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                                  cancellingId === reservation.id
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-red-600 hover:bg-red-700 text-white hover:shadow-lg'
-                                }`}
-                              >
-                                {cancellingId === reservation.id ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    Cancelando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Ban className="w-4 h-4" />
-                                    Cancelar Reserva Vencida
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          )
-                        }
-
-                        // Verificar si la reserva ya pasó (para reservas NO pendientes vencidas)
-                        const resDate = reservation.date ? reservation.date.split('T')[0] : null
-                        const endTime = reservation.endTime || reservation.end_time
-                        if (resDate && endTime) {
-                          const [year, month, day] = resDate.split('-').map(Number)
-                          const [hours, minutes] = endTime.split(':').map(Number)
-                          const reservationEnd = new Date(
-                            year,
-                            month - 1,
-                            day,
-                            hours,
-                            minutes || 0,
-                            0,
-                            0
-                          )
-                          const now = getCurrentLocalDateTime()
-                          if (reservationEnd < now) return null // Ya pasó
-                        }
-
-                        return (
-                          <div className="mt-3 pt-3 border-t border-secondary-100">
-                            <button
-                              onClick={() => handleCancelReservation(reservation)}
-                              disabled={cancellingId === reservation.id}
-                              className={`w-full py-2 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                                cancellingId === reservation.id
-                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                  : 'bg-red-500 hover:bg-red-600 text-white hover:shadow-lg'
-                              }`}
+                            <div
+                              className={`flex items-center gap-1 px-3 py-1 rounded-full ${statusInfo.bg} ${isExpired ? 'animate-pulse' : ''}`}
                             >
-                              {cancellingId === reservation.id ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                  Cancelando...
-                                </>
-                              ) : (
-                                <>
-                                  <Ban className="w-4 h-4" />
-                                  Cancelar Reserva
-                                </>
-                              )}
-                            </button>
+                              <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
+                              <span className={`text-xs font-medium ${statusInfo.color}`}>
+                                {statusInfo.label}
+                              </span>
+                            </div>
                           </div>
-                        )
-                      })()}
-                    </motion.div>
-                  )
-                })}
-              </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pt-3 border-t border-secondary-100">
+                            <div className="flex items-center gap-2 text-sm text-secondary-700">
+                              <User className="w-4 h-4 text-secondary-500" />
+                              <span className="font-medium">
+                                {reservation.customerName ||
+                                  reservation.customer_name ||
+                                  'Cliente no especificado'}
+                              </span>
+                            </div>
+
+                            {(reservation.customerPhone || reservation.customer_phone) && (
+                              <div className="flex items-center gap-2 text-sm text-secondary-700">
+                                <Phone className="w-4 h-4 text-secondary-500" />
+                                <span>
+                                  {reservation.customerPhone || reservation.customer_phone}
+                                </span>
+                              </div>
+                            )}
+
+                            {reservation.customerEmail && (
+                              <div className="flex items-center gap-2 text-sm text-secondary-700">
+                                <Mail className="w-4 h-4 text-secondary-500" />
+                                <span>{reservation.customerEmail}</span>
+                              </div>
+                            )}
+
+                            {(reservation.totalPrice || reservation.total_price) && (
+                              <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
+                                <DollarSign className="w-4 h-4 text-green-600" />
+                                <span>
+                                  S/{' '}
+                                  {(reservation.totalPrice || reservation.total_price).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Desglose de adelanto y saldo cuando el pago es parcial */}
+                          {(() => {
+                            const total =
+                              parseFloat(reservation.totalPrice ?? reservation.total_price ?? 0) ||
+                              0
+                            const advance =
+                              parseFloat(
+                                reservation.advancePayment ?? reservation.advance_payment ?? 0
+                              ) || 0
+                            const rawRemaining =
+                              reservation.remainingPayment ?? reservation.remaining_payment
+                            const remaining =
+                              rawRemaining !== undefined && rawRemaining !== null
+                                ? parseFloat(rawRemaining) || 0
+                                : Math.max(total - advance, 0)
+
+                            if (!(advance > 0 && remaining > 0)) return null
+
+                            return (
+                              <div className="mt-3 pt-3 border-t border-secondary-100 grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-1.5 text-orange-700">
+                                  <span className="font-medium">Adelanto pagado:</span>
+                                  <span className="font-semibold">S/ {advance.toFixed(2)}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-red-700 md:justify-end">
+                                  <span className="font-medium">Saldo pendiente:</span>
+                                  <span className="font-semibold">S/ {remaining.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {reservation.notes && (
+                            <div className="mt-3 pt-3 border-t border-secondary-100">
+                              <p className="text-sm text-secondary-600">
+                                <span className="font-medium">Notas:</span> {reservation.notes}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Mensaje de alerta para reservas pendientes vencidas */}
+                          {isExpired && (
+                            <div className="mt-3 pt-3 border-t border-red-200">
+                              <div className="bg-red-100 border border-red-300 rounded-lg p-3">
+                                <div className="flex items-start gap-2">
+                                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-semibold text-red-800">
+                                      Reserva pendiente vencida
+                                    </p>
+                                    <p className="text-xs text-red-700 mt-1">
+                                      Esta reserva nunca fue confirmada y ya pasó su horario
+                                      programado. Considera cancelarla o marcarla como "No asistió".
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Botón de Cancelar - Mostrar si está pendiente, confirmada, o es una reserva vencida */}
+                          {(() => {
+                            // Estados que no permiten cancelar
+                            const nonCancellableStatuses = ['cancelled', 'completed', 'no_show']
+                            if (nonCancellableStatuses.includes(reservation.status)) return null
+
+                            // Si es una reserva vencida, SIEMPRE mostrar el botón
+                            if (isExpired) {
+                              return (
+                                <div className="mt-3 pt-3 border-t border-red-200">
+                                  <button
+                                    onClick={() => handleCancelReservation(reservation)}
+                                    disabled={cancellingId === reservation.id}
+                                    className={`w-full py-2 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                                      cancellingId === reservation.id
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700 text-white hover:shadow-lg'
+                                    }`}
+                                  >
+                                    {cancellingId === reservation.id ? (
+                                      <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        Cancelando...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Ban className="w-4 h-4" />
+                                        Cancelar Reserva Vencida
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              )
+                            }
+
+                            // Verificar si la reserva ya pasó (para reservas NO pendientes vencidas)
+                            const resDate = reservation.date ? reservation.date.split('T')[0] : null
+                            const endTime = reservation.endTime || reservation.end_time
+                            if (resDate && endTime) {
+                              const [year, month, day] = resDate.split('-').map(Number)
+                              const [hours, minutes] = endTime.split(':').map(Number)
+                              const reservationEnd = new Date(
+                                year,
+                                month - 1,
+                                day,
+                                hours,
+                                minutes || 0,
+                                0,
+                                0
+                              )
+                              const now = getCurrentLocalDateTime()
+                              if (reservationEnd < now) return null // Ya pasó
+                            }
+
+                            return (
+                              <div className="mt-3 pt-3 border-t border-secondary-100">
+                                <button
+                                  onClick={() => handleCancelReservation(reservation)}
+                                  disabled={cancellingId === reservation.id}
+                                  className={`w-full py-2 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                                    cancellingId === reservation.id
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                      : 'bg-red-500 hover:bg-red-600 text-white hover:shadow-lg'
+                                  }`}
+                                >
+                                  {cancellingId === reservation.id ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                      Cancelando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Ban className="w-4 h-4" />
+                                      Cancelar Reserva
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            )
+                          })()}
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

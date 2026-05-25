@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { MapPin, DollarSign, Clock } from 'lucide-react'
-import { getFieldImage } from '../../data/fieldImages'
+import { getFieldImage, handleFieldImageError } from '../../data/fieldImages'
 import { getMainAmenities } from '../../utils/bookingHelpers'
 import { SPORT_ICONS } from '../../utils/fields-showcase/constants'
 import StatusBadge from './StatusBadge'
@@ -26,13 +26,7 @@ const FieldCard = ({ field, onFieldClick, variants }) => {
           alt={field.name}
           className="w-full h-full object-cover"
           loading="lazy"
-          onError={(e) => {
-            e.target.src = getFieldImage(field.sportType || 'multiuso', field.id)
-            e.target.onerror = (e2) => {
-              e2.target.src = '/maquetacion/CampoFutbol.png'
-              e2.target.onerror = null
-            }
-          }}
+          onError={handleFieldImageError}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
 

@@ -153,7 +153,14 @@ export const ReservationsTab = ({ onOpenBookingModal, onDateClick }) => {
 
       {/* Calendario de reservas */}
       <CalendarView
-        onDateClick={onDateClick}
+        onDateClick={(dayData) =>
+          onDateClick?.({
+            ...dayData,
+            fieldFilter:
+              selectedFieldFilter !== DEFAULT_VALUES.ALL ? parseInt(selectedFieldFilter, 10) : null,
+            visibleFieldIds: userFieldIds,
+          })
+        }
         fieldFilter={selectedFieldFilter}
         filteredFieldIds={userFieldIds}
       />

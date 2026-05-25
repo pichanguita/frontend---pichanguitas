@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fetchImagesByField } from '../services/fieldImages/fieldImagesService'
+import { handleFieldImageError } from '../data/fieldImages'
 import { getToken, API_CONFIG } from '../config/api.config'
 import {
   FIELD_APPROVAL_STATUS,
@@ -424,9 +425,7 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
                         src={fieldImages[currentImageIndex]}
                         alt={`${field.name} - Imagen ${currentImageIndex + 1}`}
                         className="w-full h-full object-cover transition-opacity duration-300"
-                        onError={(e) => {
-                          e.target.src = '/images/default-field.jpg'
-                        }}
+                        onError={handleFieldImageError}
                       />
 
                       {/* Controles de Navegación - Solo si hay más de 1 imagen */}
@@ -500,9 +499,7 @@ const FieldDetailsModal = ({ isOpen, onClose, field, onSelectField }) => {
                           src={img}
                           alt={`Miniatura ${index + 1}`}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = '/images/default-field.jpg'
-                          }}
+                          onError={handleFieldImageError}
                         />
                       </button>
                     ))}

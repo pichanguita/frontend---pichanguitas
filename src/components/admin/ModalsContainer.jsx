@@ -15,6 +15,8 @@ const ModalsContainer = ({
   selectedUser,
   selectedDate,
   selectedDayReservations,
+  dayFieldFilter = null,
+  dayVisibleFieldIds = null,
   fields,
   handlers,
   closers,
@@ -110,6 +112,8 @@ const ModalsContainer = ({
         onClose={closeDayReservationsModal}
         date={selectedDate}
         fields={fields}
+        fieldFilter={dayFieldFilter}
+        visibleFieldIds={dayVisibleFieldIds}
       />
 
       {/* Booking Modal (New Reservation) */}

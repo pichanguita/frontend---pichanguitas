@@ -30,6 +30,7 @@ const ClientRegistrationModal = ({
     clientSelectionMode,
     selectedCustomerId,
     visibleFields,
+    selectedField,
     handleInputChange,
     handleClientModeChange,
     handleSelectCustomer,
@@ -140,6 +141,7 @@ const ClientRegistrationModal = ({
                   onChange={handleInputChange}
                   isLoading={isLoading}
                   occupiedSlots={occupiedSlots}
+                  selectedField={selectedField}
                 />
 
                 {formData.totalAmount > 0 && (

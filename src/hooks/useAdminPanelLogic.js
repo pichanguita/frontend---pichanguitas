@@ -26,6 +26,9 @@ export const useAdminPanelLogic = ({
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedDayReservations, setSelectedDayReservations] = useState([])
+  // Filtro de cancha y canchas visibles vigentes al abrir el modal de reservas del día.
+  const [dayFieldFilter, setDayFieldFilter] = useState(null)
+  const [dayVisibleFieldIds, setDayVisibleFieldIds] = useState(null)
 
   const checkSessionRef = useRef(checkSession)
   checkSessionRef.current = checkSession
@@ -101,6 +104,8 @@ export const useAdminPanelLogic = ({
 
   const handleDateClick = (dayData) => {
     setSelectedDate(dayData.date)
+    setDayFieldFilter(dayData.fieldFilter ?? null)
+    setDayVisibleFieldIds(dayData.visibleFieldIds ?? null)
 
     // Formatear la fecha en hora local como YYYY-MM-DD
     const date = new Date(dayData.date)
@@ -153,6 +158,8 @@ export const useAdminPanelLogic = ({
     closeModal('dayReservations')
     setSelectedDate(null)
     setSelectedDayReservations([])
+    setDayFieldFilter(null)
+    setDayVisibleFieldIds(null)
   }
 
   return {
@@ -162,6 +169,8 @@ export const useAdminPanelLogic = ({
     selectedUser,
     selectedDate,
     selectedDayReservations,
+    dayFieldFilter,
+    dayVisibleFieldIds,
     handleLogout,
     handleEditField,
     handleConfigField,

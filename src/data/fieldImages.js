@@ -69,6 +69,34 @@ export const fieldImages = {
 export const defaultFieldImage =
   'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&h=400&q=75&auto=format&fit=crop&crop=center'
 
+// Placeholder local garantizado (SVG en data URI, sin red). SIEMPRE carga, por
+// lo que nunca dispara el evento `error` del <img>.
+export const FIELD_IMAGE_PLACEHOLDER =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">' +
+      '<rect width="600" height="400" fill="#0a2424"/>' +
+      '<text x="50%" y="50%" fill="#ffd500" font-family="sans-serif" font-size="28"' +
+      ' text-anchor="middle" dominant-baseline="middle">Sin Imagen</text></svg>'
+  )
+
+/**
+ * Handler de error para imágenes de cancha: idempotente y TERMINAL.
+ *
+ * Degrada a un placeholder local que siempre carga. Como el placeholder no
+ * falla, el evento `error` no se vuelve a disparar y el ciclo termina tras un
+ * único fallo. Evita el bucle infinito que producía reasignar una URL remota
+ * que vuelve a fallar (el listener de React vuelve a ejecutarse en cada error,
+ * por lo que anular `e.target.onerror` no es suficiente).
+ * @param {Event} e - evento onError del <img>
+ */
+export const handleFieldImageError = (e) => {
+  const img = e.currentTarget
+  if (!img || img.src === FIELD_IMAGE_PLACEHOLDER) return
+  img.onerror = null
+  img.src = FIELD_IMAGE_PLACEHOLDER
+}
+
 // Function to get image for a field based on sport type and field ID
 export const getFieldImage = (sportType, fieldId) => {
   const sportImages = fieldImages[sportType] || fieldImages.multiuso

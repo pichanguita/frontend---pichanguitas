@@ -1,6 +1,12 @@
 import React, { useMemo } from 'react'
-import { MapPin, Calendar, Clock, AlertCircle } from 'lucide-react'
-import { getFilteredTimeOptions } from '../../utils/client-registration/clientRegistrationHelpers'
+import { MapPin, Calendar, Clock, AlertCircle, Info } from 'lucide-react'
+import {
+  getFilteredTimeOptions,
+  getFieldDaySchedule,
+  getFieldDayKey,
+  getDayLabelEs,
+} from '../../utils/client-registration/clientRegistrationHelpers'
+import { isFieldUnderMaintenanceOnDate } from '../../utils/fieldMaintenance'
 import { getToday } from '../../utils/dateFormatters'
 
 const ReservationDataForm = ({
@@ -10,18 +16,79 @@ const ReservationDataForm = ({
   onChange,
   isLoading,
   occupiedSlots = [],
+  selectedField = null,
 }) => {
-  // ✅ Filtrar opciones de hora de inicio (excluye horas pasadas si es hoy + horas ocupadas)
+  // ✅ Filtrar opciones de hora de inicio (excluye horas pasadas si es hoy + horas ocupadas + horario cancha)
   const startTimeOptions = useMemo(() => {
     if (!formData.date) return []
-    return getFilteredTimeOptions(formData.date, occupiedSlots, 'start', null)
-  }, [formData.date, occupiedSlots])
+    return getFilteredTimeOptions(formData.date, occupiedSlots, 'start', null, selectedField)
+  }, [formData.date, occupiedSlots, selectedField])
 
-  // ✅ Filtrar opciones de hora de fin (debe ser mayor a inicio + no solapar con ocupados)
+  // ✅ Filtrar opciones de hora de fin (debe ser mayor a inicio + no solapar + horario cancha)
   const endTimeOptions = useMemo(() => {
     if (!formData.date || !formData.startTime) return []
-    return getFilteredTimeOptions(formData.date, occupiedSlots, 'end', formData.startTime)
-  }, [formData.date, formData.startTime, occupiedSlots])
+    return getFilteredTimeOptions(
+      formData.date,
+      occupiedSlots,
+      'end',
+      formData.startTime,
+      selectedField
+    )
+  }, [formData.date, formData.startTime, occupiedSlots, selectedField])
+
+  // ✅ Horario semanal completo de la cancha seleccionada (todos los días)
+  // Se muestra apenas se selecciona la cancha, sin necesidad de elegir fecha.
+  const weeklySchedule = useMemo(() => {
+    if (!selectedField || !selectedField.schedule) return null
+    const order = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    return order.map((dayKey) => {
+      const cfg = selectedField.schedule[dayKey]
+      const label = getDayLabelEs(dayKey)
+      if (!cfg || cfg.isOpen === false) {
+        return { dayKey, label, isOpen: false, openTime: null, closeTime: null }
+      }
+      return {
+        dayKey,
+        label,
+        isOpen: true,
+        openTime: cfg.openTime ? cfg.openTime.slice(0, 5) : null,
+        closeTime: cfg.closeTime ? cfg.closeTime.slice(0, 5) : null,
+      }
+    })
+  }, [selectedField])
+
+  // Día actualmente seleccionado en la fecha (para resaltar en el panel)
+  const currentDayKey = useMemo(
+    () => (formData.date ? getFieldDayKey(formData.date) : null),
+    [formData.date]
+  )
+
+  // ✅ Aviso de horario / día cerrado / mantenimiento para la cancha seleccionada
+  const scheduleNotice = useMemo(() => {
+    if (!selectedField || !formData.date) return null
+    if (isFieldUnderMaintenanceOnDate(selectedField, formData.date)) {
+      return {
+        type: 'maintenance',
+        text: 'Esta cancha está en mantenimiento en la fecha seleccionada.',
+      }
+    }
+    const daySchedule = getFieldDaySchedule(selectedField, formData.date)
+    const dayLabel = getDayLabelEs(getFieldDayKey(formData.date))
+    if (!daySchedule) return null
+    if (daySchedule.isOpen === false) {
+      return {
+        type: 'closed',
+        text: `Esta cancha no opera los ${dayLabel}. Selecciona otro día.`,
+      }
+    }
+    if (daySchedule.openTime && daySchedule.closeTime) {
+      return {
+        type: 'info',
+        text: `Horario los ${dayLabel}: ${daySchedule.openTime.slice(0, 5)} a ${daySchedule.closeTime.slice(0, 5)}.`,
+      }
+    }
+    return null
+  }, [selectedField, formData.date])
 
   return (
     <div>
@@ -54,6 +121,62 @@ const ReservationDataForm = ({
               <AlertCircle className="w-4 h-4 mr-1" />
               {errors.fieldId}
             </p>
+          )}
+          {weeklySchedule && (
+            <div
+              data-testid="field-weekly-schedule"
+              className="mt-2 p-3 rounded-md border border-gray-200 bg-gray-50"
+            >
+              <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                Horario de atención
+              </p>
+              <ul className="space-y-1">
+                {weeklySchedule.map((d) => {
+                  const isToday = currentDayKey === d.dayKey
+                  return (
+                    <li
+                      key={d.dayKey}
+                      className={`flex justify-between text-xs px-2 py-1 rounded ${
+                        isToday
+                          ? d.isOpen
+                            ? 'bg-blue-100 text-blue-900 font-semibold'
+                            : 'bg-amber-100 text-amber-900 font-semibold'
+                          : d.isOpen
+                            ? 'text-gray-700'
+                            : 'text-gray-400'
+                      }`}
+                    >
+                      <span className="capitalize">{d.label}</span>
+                      <span>
+                        {d.isOpen
+                          ? d.openTime && d.closeTime
+                            ? `${d.openTime} - ${d.closeTime}`
+                            : 'Abierto'
+                          : 'Cerrado'}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+          {scheduleNotice && (
+            <div
+              data-testid="field-schedule-notice"
+              className={`mt-2 p-2 rounded-md text-sm flex items-start gap-2 border ${
+                scheduleNotice.type === 'info'
+                  ? 'bg-blue-50 border-blue-200 text-blue-800'
+                  : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}
+            >
+              {scheduleNotice.type === 'info' ? (
+                <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              )}
+              <span>{scheduleNotice.text}</span>
+            </div>
           )}
         </div>
 

@@ -199,8 +199,8 @@ const FieldSelectionPanel = ({
             <MapPin className="w-16 h-16 mb-4 opacity-30 mx-auto" />
             <p className="text-lg font-medium">No hay canchas disponibles</p>
             <p className="text-sm mt-2">
-              Puede deberse a horarios ocupados o a canchas cerradas en la fecha elegida.
-              Prueba con otra fecha, horario o filtros.
+              Puede deberse a horarios ocupados o a canchas cerradas en la fecha elegida. Prueba con
+              otra fecha, horario o filtros.
             </p>
           </div>
         ) : (
@@ -349,6 +349,23 @@ const FieldSelectionPanel = ({
                         <span className="text-xs" style={{ color: '#000000' }}>
                           ({field.totalReviews || 0}{' '}
                           {field.totalReviews === 1 ? 'reseña' : 'reseñas'})
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Indicador de adelanto requerido por la cancha */}
+                    {(field.requiresAdvancePayment ?? field.requires_advance_payment) && (
+                      <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                        <AlertCircle className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                        <span className="text-xs font-medium text-orange-800">
+                          Requiere adelanto
+                          {(() => {
+                            const amt =
+                              parseFloat(
+                                field.advancePaymentAmount ?? field.advance_payment_amount
+                              ) || 0
+                            return amt > 0 ? `: S/ ${amt.toFixed(2)} por hora` : ''
+                          })()}
                         </span>
                       </div>
                     )}
