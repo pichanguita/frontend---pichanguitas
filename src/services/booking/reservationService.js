@@ -535,30 +535,6 @@ export const createPublicReservation = async (reservationData) => {
   return data.data
 }
 
-/**
- * Subir voucher de pago
- * @param {File} voucherFile - Archivo del voucher
- * @returns {Promise<Object>} { url, filename, originalName, size }
- */
-export const uploadPaymentVoucher = async (voucherFile) => {
-  const formData = new FormData()
-  formData.append('voucher', voucherFile)
-
-  const response = await fetch(API_CONFIG.RESERVATIONS.UPLOAD_VOUCHER, {
-    method: 'POST',
-    // NO incluir Content-Type header - el navegador lo establece automáticamente con boundary
-    body: formData,
-  })
-
-  const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Error al subir voucher')
-  }
-
-  return data.data
-}
-
 // ==================== API PÚBLICA (Sin autenticación) ====================
 
 /**

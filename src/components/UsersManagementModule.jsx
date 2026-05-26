@@ -619,14 +619,8 @@ const UsersManagementModule = () => {
 
       {/* Modal de detalles de canchas - Mejorado */}
       {showDetailsModal && selectedUser && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowDetailsModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header fijo */}
             <div className="p-6 border-b border-secondary-200 bg-gradient-to-r from-primary-600 to-primary-700 flex-shrink-0">
               <div className="flex items-center justify-between">
@@ -803,7 +797,7 @@ const UsersManagementModule = () => {
                             <div className="mb-4">
                               <p className="text-xs text-secondary-500 mb-2">Servicios</p>
                               <div className="flex flex-wrap gap-1">
-                                {field.amenities.slice(0, 6).map((amenity) => (
+                                {field.amenities.map((amenity) => (
                                   <span
                                     key={amenity.key}
                                     className="px-2 py-1 bg-primary-50 text-primary-700 text-xs rounded-full"
@@ -811,11 +805,6 @@ const UsersManagementModule = () => {
                                     {amenity.label}
                                   </span>
                                 ))}
-                                {field.amenities.length > 6 && (
-                                  <span className="px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-full">
-                                    +{field.amenities.length - 6} más
-                                  </span>
-                                )}
                               </div>
                             </div>
                           )}

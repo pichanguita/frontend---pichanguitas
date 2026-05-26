@@ -4,7 +4,6 @@ import { Check, Trash2, Edit } from 'lucide-react'
 import { ALERT_TYPES, ALERT_STATUS } from '@/constants'
 import { getPriorityColor, getTypeIcon, formatAlertDate } from '../../utils/alerts/formatters.jsx'
 import ReservationDetails from './ReservationDetails'
-import AnniversaryDetails from './AnniversaryDetails'
 
 const AlertCard = ({ alert, onMarkAsRead, onDelete, onEdit }) => {
   return (
@@ -41,9 +40,6 @@ const AlertCard = ({ alert, onMarkAsRead, onDelete, onEdit }) => {
             {alert.type === ALERT_TYPES.RESERVATION && alert.reservationData && (
               <ReservationDetails alert={alert} />
             )}
-
-            {/* Anniversary Details */}
-            {alert.type === ALERT_TYPES.USER_ANNIVERSARY && <AnniversaryDetails alert={alert} />}
           </div>
         </div>
 

@@ -3,16 +3,11 @@ import { ArrowLeft, Gift, AlertCircle, Phone } from 'lucide-react'
 import usePaymentFlow from '../hooks/usePaymentFlow'
 import ReservationSummary from './payment-flow/ReservationSummary'
 import PaymentMethodsList from './payment-flow/PaymentMethodsList'
-import VoucherUploadSection from './payment-flow/VoucherUploadSection'
-import QRPayment from './QRPayment'
 
 const PaymentFlow = ({ onBack, onComplete }) => {
   const {
     paymentMethod,
-    voucherFile,
     isProcessing,
-    showQR,
-    selectedMethodForQR,
     pricing,
     advanceInfo, // 💰 Info de adelanto
     selectedField,
@@ -21,40 +16,12 @@ const PaymentFlow = ({ onBack, onComplete }) => {
     timeRanges,
     phoneNumber,
     paymentMethods,
-    handleFileUpload,
-    showPaymentInstructions,
-    handleQRPaymentComplete,
-    handleQRCancel,
+    setPaymentMethod,
     processReservation,
   } = usePaymentFlow(onComplete)
 
-  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethod)
-
-  // 🔥 PUNTO 1: Efectivo NUNCA requiere voucher (se paga presencialmente)
-  const isCashPayment = paymentMethod === 'efectivo' || paymentMethod === 'cash'
-  const requiresVoucher = !isCashPayment && selectedMethod?.requiresVoucher !== false
-
   // Verificar si es una reserva gratis (cubierta por horas gratis)
   const isFreeReservation = pricing?.totalAmount === 0 && pricing?.freeHoursUsed > 0
-
-  if (showQR && selectedMethodForQR) {
-    // Si la cancha exige adelanto y el método NO es efectivo, el monto a pagar AHORA
-    // es únicamente el adelanto, no el total. El saldo restante se paga al llegar a la cancha.
-    const qrAmount = advanceInfo?.amountDueNow ?? pricing.totalAmount
-    return (
-      <div className="max-w-2xl mx-auto px-3 sm:px-0">
-        <QRPayment
-          method={selectedMethodForQR}
-          amount={qrAmount}
-          isAdvance={advanceInfo?.isAdvanceOnlinePayment}
-          totalAmount={pricing.totalAmount}
-          remainingAmount={advanceInfo?.remainingAfterAdvance ?? 0}
-          onPaymentComplete={handleQRPaymentComplete}
-          onCancel={handleQRCancel}
-        />
-      </div>
-    )
-  }
 
   return (
     <div className="max-w-2xl mx-auto px-3 sm:px-0">
@@ -83,42 +50,10 @@ const PaymentFlow = ({ onBack, onComplete }) => {
           pricing={pricing}
         />
 
-        {/* 💰 Información de Adelanto - Para pagos NO en efectivo */}
-        {/* Condición: La cancha REQUIERE adelanto + hay monto configurado + NO es efectivo + NO es gratis */}
+        {/* 💰 Adelanto informativo: se coordina y paga con el administrador */}
+        {/* (aplica a cualquier método cuando la cancha requiere adelanto) */}
         {advanceInfo?.required &&
           advanceInfo?.perHour > 0 &&
-          !isFreeReservation &&
-          !isCashPayment && (
-            <div className="mt-4 sm:mt-6 bg-amber-50 border border-amber-300 rounded-xl p-4 sm:p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-lg">💰</span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-amber-800 text-base sm:text-lg">
-                    Adelanto para reservar: S/ {(advanceInfo.perHour * advanceInfo.hours).toFixed(2)}
-                  </p>
-                  {advanceInfo.hours > 1 && (
-                    <p className="text-amber-700 text-xs">
-                      (S/ {advanceInfo.perHour.toFixed(2)} por hora × {advanceInfo.hours} horas)
-                    </p>
-                  )}
-                  <p className="text-amber-700 text-sm mt-1">
-                    Saldo a pagar en la cancha: S/ {(pricing.totalAmount - (advanceInfo.perHour * advanceInfo.hours)).toFixed(2)}
-                  </p>
-                  <p className="text-amber-600 text-xs mt-2">
-                    📲 Transfiere el monto del adelanto y sube tu comprobante de pago.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-        {/* 💬 Mensaje para EFECTIVO - Coordinar adelanto por WhatsApp */}
-        {/* Condición: La cancha REQUIERE adelanto + hay monto configurado + ES efectivo + NO es gratis */}
-        {advanceInfo?.required &&
-          advanceInfo?.perHour > 0 &&
-          isCashPayment &&
           !isFreeReservation &&
           pricing?.totalAmount > 0 && (
             <div className="mt-4 sm:mt-6 bg-blue-50 border-2 border-blue-400 rounded-xl p-4 sm:p-5">
@@ -135,7 +70,7 @@ const PaymentFlow = ({ onBack, onComplete }) => {
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-blue-200 mb-3">
                     <p className="text-blue-900 font-semibold text-lg sm:text-xl">
-                      Monto del adelanto: S/ {(advanceInfo.perHour * advanceInfo.hours).toFixed(2)}
+                      Monto del adelanto: S/ {advanceInfo.amount.toFixed(2)}
                     </p>
                     {advanceInfo.hours > 1 && (
                       <p className="text-blue-700 text-xs mt-1">
@@ -144,13 +79,8 @@ const PaymentFlow = ({ onBack, onComplete }) => {
                     )}
                   </div>
                   <p className="text-blue-700 text-sm">
-                    📞 <strong>Has elegido pagar en efectivo.</strong> Debes pagar un adelanto para
-                    confirmar tu reserva.
-                  </p>
-                  <p className="text-blue-600 text-sm mt-2">
-                    Comunícate con el <strong>administrador por WhatsApp</strong> para coordinar el
-                    pago del adelanto de{' '}
-                    <strong>S/ {(advanceInfo.perHour * advanceInfo.hours).toFixed(2)}</strong>.
+                    📞 Comunícate con el <strong>administrador por WhatsApp</strong> para coordinar
+                    el pago del adelanto.
                   </p>
                   {selectedField?.phone && (
                     <div className="mt-3 flex items-center gap-2 bg-green-100 rounded-lg p-2">
@@ -161,9 +91,8 @@ const PaymentFlow = ({ onBack, onComplete }) => {
                     </div>
                   )}
                   <p className="text-blue-500 text-xs mt-3 italic">
-                    💡 El saldo restante de S/{' '}
-                    {(pricing.totalAmount - advanceInfo.perHour * advanceInfo.hours).toFixed(2)} lo
-                    pagarás al llegar a la cancha.
+                    💡 El saldo restante de S/ {advanceInfo.remaining.toFixed(2)} lo pagarás al
+                    llegar a la cancha.
                   </p>
                 </div>
               </div>
@@ -212,20 +141,11 @@ const PaymentFlow = ({ onBack, onComplete }) => {
             <PaymentMethodsList
               paymentMethods={paymentMethods}
               selectedMethod={paymentMethod}
-              onMethodSelect={showPaymentInstructions}
+              onMethodSelect={setPaymentMethod}
               isProcessing={isProcessing}
             />
 
             {paymentMethod && (
-              <VoucherUploadSection
-                voucherFile={voucherFile}
-                onFileUpload={handleFileUpload}
-                requiresVoucher={requiresVoucher}
-                isProcessing={isProcessing}
-              />
-            )}
-
-            {paymentMethod && (!requiresVoucher || voucherFile) && (
               <div className="mt-6 sm:mt-8">
                 <button
                   onClick={processReservation}
@@ -238,7 +158,7 @@ const PaymentFlow = ({ onBack, onComplete }) => {
                       <span>Procesando...</span>
                     </>
                   ) : (
-                    <span>Confirmar Reserva y Pagar</span>
+                    <span>Confirmar Reserva</span>
                   )}
                 </button>
               </div>
@@ -248,14 +168,6 @@ const PaymentFlow = ({ onBack, onComplete }) => {
               <div className="mt-6 sm:mt-8 bg-blue-50 border border-blue-200 rounded-lg sm:rounded-xl p-3 sm:p-4">
                 <p className="text-xs sm:text-sm text-blue-700">
                   Selecciona un metodo de pago para continuar con tu reserva
-                </p>
-              </div>
-            )}
-
-            {paymentMethod && requiresVoucher && !voucherFile && (
-              <div className="mt-6 sm:mt-8 bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl p-3 sm:p-4">
-                <p className="text-xs sm:text-sm text-amber-700">
-                  Sube el comprobante de pago para completar tu reserva
                 </p>
               </div>
             )}

@@ -78,7 +78,6 @@ const HomePage = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6"
-            onClick={closeBookingModal}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -89,7 +88,6 @@ const HomePage = () => {
               style={{
                 maxWidth: 'min(1400px, 95vw)',
               }}
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Header con botón cerrar - sticky */}
               <div className="sticky top-0 z-20 bg-white rounded-t-lg sm:rounded-t-xl md:rounded-t-2xl border-b border-gray-200 px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 flex justify-between items-center shadow-sm">

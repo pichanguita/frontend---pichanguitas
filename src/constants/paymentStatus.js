@@ -23,6 +23,10 @@ export const PAYMENT_METHODS = {
   TRANSFER: 'transfer',
 }
 
+// Label visible único del método de pago en efectivo (reserva sin pago adelantado).
+// Fuente única: cualquier UI que muestre este método debe consumir esta constante.
+export const CASH_PAYMENT_LABEL = 'Reserva sin adelanto'
+
 // Labels para UI
 export const PAYMENT_STATUS_LABELS = {
   [PAYMENT_STATUS.PENDING]: 'Pendiente',
@@ -39,7 +43,7 @@ export const PAYMENT_METHOD_LABELS = {
   [PAYMENT_METHODS.PLIN]: 'Plin',
   [PAYMENT_METHODS.BCP]: 'BCP',
   [PAYMENT_METHODS.INTERBANK]: 'Interbank',
-  [PAYMENT_METHODS.CASH]: 'Efectivo',
+  [PAYMENT_METHODS.CASH]: CASH_PAYMENT_LABEL,
   [PAYMENT_METHODS.TRANSFER]: 'Transferencia',
 }
 

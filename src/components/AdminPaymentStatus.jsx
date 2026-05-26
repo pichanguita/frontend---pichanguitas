@@ -344,6 +344,12 @@ const AdminPaymentStatus = () => {
                           day: '2-digit',
                           month: 'short',
                           year: 'numeric',
+                          // dueDate proviene de una columna @db.Date del backend, que se
+                          // serializa como medianoche UTC. Formatear en 'UTC' muestra el día
+                          // EXACTO de vencimiento configurado, sin desfasarse por la zona
+                          // horaria del navegador (Perú UTC-5 mostraba el día anterior).
+                          // Invariante a la zona: idéntico en local y en producción (Railway).
+                          timeZone: 'UTC',
                         })}
                       </span>
                     </div>
@@ -544,14 +550,12 @@ const AdminPaymentStatus = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowReportModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
               <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">

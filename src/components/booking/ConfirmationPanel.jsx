@@ -47,7 +47,7 @@ const ConfirmationPanel = ({
   isClientAuthenticated = false, // Si es un cliente autenticado (no admin)
   // Funciones helper
   getSportImages,
-  getMainAmenities,
+  getFieldAmenities,
   calculatePriceWithDiscount,
   canConfirmReservation,
   // Handlers
@@ -300,14 +300,14 @@ const ConfirmationPanel = ({
             </div>
 
             {/* Amenidades/Beneficios de la cancha */}
-            {getMainAmenities(selectedFieldForReservation).length > 0 && (
+            {getFieldAmenities(selectedFieldForReservation).length > 0 && (
               <div className="mb-4 pb-4 border-b border-secondary-200">
                 <h5 className="text-sm font-bold text-secondary-900 mb-3 flex items-center gap-2">
                   <Star className="w-4 h-4" style={{ color: '#ffd500' }} />
                   Beneficios Incluidos
                 </h5>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {getMainAmenities(selectedFieldForReservation).map((amenity, idx) => (
+                  {getFieldAmenities(selectedFieldForReservation).map((amenity, idx) => (
                     <div
                       key={idx}
                       className="flex items-center gap-2 p-2 rounded-lg bg-secondary-50 border border-secondary-200"

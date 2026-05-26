@@ -8,6 +8,7 @@ import {
 } from '../../utils/client-registration/clientRegistrationHelpers'
 import { isFieldUnderMaintenanceOnDate } from '../../utils/fieldMaintenance'
 import { getToday } from '../../utils/dateFormatters'
+import { CASH_PAYMENT_LABEL } from '../../constants/paymentStatus'
 
 const ReservationDataForm = ({
   formData,
@@ -328,7 +329,7 @@ const ReservationDataForm = ({
               disabled={isLoading}
             >
               <option value="">Seleccionar método</option>
-              <option value="cash">Efectivo</option>
+              <option value="cash">{CASH_PAYMENT_LABEL}</option>
               <option value="yape">Yape</option>
               <option value="plin">Plin</option>
               <option value="transfer">Transferencia</option>

@@ -2,8 +2,6 @@ import React, { useRef } from 'react'
 import { Plus, X, Image, Upload, AlertCircle } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { API_CONFIG } from '../../../config/api.config'
-import useAmenitiesCatalog from '../../../hooks/useAmenitiesCatalog'
-import { getAmenityIconComponent } from '../../../utils/amenityIconRegistry'
 
 // Helper para obtener URL completa de imagen
 const getFullImageUrl = (imageUrl) => {
@@ -19,13 +17,13 @@ const getFullImageUrl = (imageUrl) => {
   return imageUrl
 }
 
+// NOTA: El tipo de cancha, la capacidad, el estado/disponibilidad ("Cancha activa")
+// y las comodidades se gestionan exclusivamente desde "Editar Cancha", que es la
+// fuente única de esos datos. Esta pestaña solo administra la confirmación manual,
+// las reglas y las imágenes personalizadas.
 const GeneralTab = ({
   config,
-  fieldTypes,
-  getFieldTypeInfo,
   onGeneralChange,
-  onFieldTypeChange,
-  onToggleAmenity,
   onAddRule,
   onRemoveRule,
   onAddCustomImage,
@@ -33,12 +31,6 @@ const GeneralTab = ({
   onRemoveCustomImage,
 }) => {
   const fileInputRef = useRef(null)
-  const { catalog: amenitiesCatalog, isLoading: amenitiesLoading } = useAmenitiesCatalog()
-  const selectedKeys = new Set(
-    (config.amenities || [])
-      .map((a) => (typeof a === 'string' ? a : a?.key))
-      .filter(Boolean)
-  )
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
@@ -75,116 +67,37 @@ const GeneralTab = ({
   }
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-secondary-900">Información General</h3>
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-secondary-900">Confirmación de Reservas</h3>
 
-          <div>
-            <label className="block text-sm font-medium text-secondary-700 mb-1">
-              Tipo de Cancha
-            </label>
-            <select
-              value={config.fieldType}
-              onChange={(e) => onFieldTypeChange(e.target.value)}
-              className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:border-primary-500"
-            >
-              {fieldTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 p-3 bg-primary-50 border border-primary-200 rounded-lg">
-              <p className="text-sm text-primary-700">{getFieldTypeInfo(config.fieldType)}</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-secondary-700 mb-1">Capacidad</label>
-            <input
-              type="number"
-              min="1"
-              max="50000"
-              value={config.capacity}
-              onChange={(e) => onGeneralChange('capacity', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:border-primary-500"
-            />
-          </div>
-
-          <div className="flex items-center space-x-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-start space-x-3">
             <input
               type="checkbox"
-              id="isActive"
-              checked={config.isActive}
-              onChange={(e) => onGeneralChange('isActive', e.target.checked)}
-              className="w-4 h-4 text-primary-600 border-2 border-secondary-300 rounded focus:ring-primary-500"
+              id="requiresManualConfirmation"
+              checked={config.requiresManualConfirmation}
+              onChange={(e) => onGeneralChange('requiresManualConfirmation', e.target.checked)}
+              className="w-4 h-4 text-amber-600 border-2 border-amber-300 rounded focus:ring-amber-500 mt-0.5"
             />
-            <label htmlFor="isActive" className="text-sm font-medium text-secondary-700">
-              Cancha activa y disponible para reservas
-            </label>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
-            <div className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                id="requiresManualConfirmation"
-                checked={config.requiresManualConfirmation}
-                onChange={(e) => onGeneralChange('requiresManualConfirmation', e.target.checked)}
-                className="w-4 h-4 text-amber-600 border-2 border-amber-300 rounded focus:ring-amber-500 mt-0.5"
-              />
-              <div className="flex-1">
-                <label
-                  htmlFor="requiresManualConfirmation"
-                  className="text-sm font-medium text-amber-900 cursor-pointer"
-                >
-                  Requiere confirmación manual del administrador
-                </label>
-                <p className="text-xs text-amber-700 mt-1">
-                  Las reservas quedarán como "Pendientes" hasta que un administrador las apruebe o
-                  rechace
-                </p>
-              </div>
+            <div className="flex-1">
+              <label
+                htmlFor="requiresManualConfirmation"
+                className="text-sm font-medium text-amber-900 cursor-pointer"
+              >
+                Requiere confirmación manual del administrador
+              </label>
+              <p className="text-xs text-amber-700 mt-1">
+                Las reservas quedarán como "Pendientes" hasta que un administrador las apruebe o
+                rechace
+              </p>
             </div>
-            {config.requiresManualConfirmation && (
-              <div className="bg-amber-100 rounded-md p-3">
-                <p className="text-xs text-amber-800">
-                  <strong>Modo Activo:</strong> Las reservas de clientes quedarán pendientes.
-                  Recuerda revisarlas en el panel "Reservas Pendientes".
-                </p>
-              </div>
-            )}
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-secondary-900">Comodidades</h3>
-
-          {amenitiesLoading && (
-            <p className="text-sm text-secondary-500">Cargando catálogo...</p>
-          )}
-
-          {!amenitiesLoading && amenitiesCatalog.length > 0 && (
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {amenitiesCatalog.map((amenity) => {
-                const Icon = getAmenityIconComponent(amenity.icon_name)
-                const checked = selectedKeys.has(amenity.key)
-                return (
-                  <label
-                    key={amenity.key}
-                    className="flex items-center space-x-3 p-2 bg-secondary-50 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => onToggleAmenity(amenity.key, e.target.checked)}
-                      className="w-4 h-4 text-primary-600 border-2 border-secondary-300 rounded focus:ring-primary-500"
-                    />
-                    <Icon className="w-4 h-4 text-secondary-600 flex-shrink-0" />
-                    <span className="text-sm">{amenity.label}</span>
-                  </label>
-                )
-              })}
+          {config.requiresManualConfirmation && (
+            <div className="bg-amber-100 rounded-md p-3">
+              <p className="text-xs text-amber-800">
+                <strong>Modo Activo:</strong> Las reservas de clientes quedarán pendientes.
+                Recuerda revisarlas en el panel "Reservas Pendientes".
+              </p>
             </div>
           )}
         </div>

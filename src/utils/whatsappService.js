@@ -1,6 +1,8 @@
 // WhatsApp service for Canchas Apurimac
 // Generates WhatsApp links with pre-formatted reservation confirmations
 
+import { CASH_PAYMENT_LABEL } from '../constants/paymentStatus'
+
 /**
  * Formats phone number for WhatsApp (removes spaces, adds country code if needed)
  */
@@ -25,8 +27,8 @@ const getPaymentMethodName = (methodId) => {
     plin: 'Plin',
     bcp: 'Transferencia BCP',
     interbank: 'Transferencia Interbank',
-    cash: 'Efectivo en cancha',
-    efectivo: 'Efectivo en cancha',
+    cash: CASH_PAYMENT_LABEL,
+    efectivo: CASH_PAYMENT_LABEL,
   }
   return methods[methodId] || 'Pago digital'
 }

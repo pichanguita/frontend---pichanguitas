@@ -26,19 +26,18 @@ import { API_CONFIG, getAuthHeaders } from '@/config/api.config'
  */
 export const transformConfigToBackend = (fieldId, config) => {
   return {
-    // Información general de la cancha
+    // Información general de la cancha.
+    // field_type, capacity, is_active y las comodidades (amenities) se gestionan
+    // EXCLUSIVAMENTE desde "Editar Cancha" (fuente única). Esta config solo
+    // administra la confirmación manual. El modelo usa COALESCE en estas columnas
+    // y omite las amenidades cuando no llega el array, por lo que NO enviarlas
+    // preserva sus valores en la BD y evita pisar lo configurado en "Editar".
     field: {
-      field_type: config.fieldType || null,
-      capacity: config.capacity || null,
-      is_active: config.isActive ?? true,
       requires_manual_confirmation: config.requiresManualConfirmation ?? false,
     },
 
     // Horarios de la cancha
     schedules: transformSchedulesToBackend(config.schedule || []),
-
-    // Amenidades/Comodidades
-    amenities: transformAmenitiesToBackend(config.amenities || []),
 
     // Reglas y políticas
     rules: transformRulesToBackend(config.rules || []),
@@ -127,40 +126,21 @@ const transformSchedulesToBackend = (schedules) => {
 }
 
 /**
- * Transforma amenidades del frontend al backend.
- * Acepta tanto array de keys (string) como array de objetos {key,...}
- * y devuelve un array plano de keys que fieldsModel resuelve contra
- * amenities_catalog.
- */
-const transformAmenitiesToBackend = (amenities) => {
-  if (!Array.isArray(amenities)) return []
-  return amenities
-    .map((a) => (typeof a === 'string' ? a : a?.key))
-    .filter(Boolean)
-}
-
-/**
- * Transforma reglas del frontend al backend
- * @param {Array} rules - Array de reglas
+ * Transforma reglas del frontend al backend.
+ * La tabla field_rules solo persiste el texto de la regla (columna `rule`),
+ * por lo que únicamente se envía rule_text.
+ * @param {Array} rules - Array de reglas (strings u objetos)
  * @returns {Array} Reglas en formato backend
  */
 const transformRulesToBackend = (rules) => {
   if (!Array.isArray(rules)) return []
 
-  return rules.map((rule) => {
-    if (typeof rule === 'string') {
-      return {
-        rule_text: rule,
-        category: 'general',
-        priority: 0,
-      }
-    }
-    return {
-      rule_text: rule.text || rule.ruleText || rule.rule_text || rule.content,
-      category: rule.category || 'general',
-      priority: rule.priority || 0,
-    }
-  })
+  return rules.map((rule) => ({
+    rule_text:
+      typeof rule === 'string'
+        ? rule
+        : rule.text || rule.ruleText || rule.rule_text || rule.content,
+  }))
 }
 
 /**
@@ -354,7 +334,8 @@ const transformAmenitiesToFrontend = (amenities) => {
 }
 
 /**
- * Transforma reglas del backend al frontend
+ * Transforma reglas del backend al frontend.
+ * Solo existe el texto de la regla; no hay categoría ni prioridad en la tabla.
  */
 const transformRulesToFrontend = (rules) => {
   if (!Array.isArray(rules)) return []
@@ -362,8 +343,6 @@ const transformRulesToFrontend = (rules) => {
   return rules.map((rule) => ({
     id: rule.id,
     text: rule.rule_text,
-    category: rule.category || 'general',
-    priority: rule.priority || 0,
   }))
 }
 

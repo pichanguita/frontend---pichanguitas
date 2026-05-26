@@ -99,6 +99,7 @@ export const API_CONFIG = {
     GET_FIELDS_COUNT: (id) => `${API_BASE_URL}/api/sport-types/${id}/fields-count`,
     CREATE: `${API_BASE_URL}/api/sport-types`,
     UPDATE: (id) => `${API_BASE_URL}/api/sport-types/${id}`,
+    REORDER: `${API_BASE_URL}/api/sport-types/reorder`,
     DELETE: (id) => `${API_BASE_URL}/api/sport-types/${id}`,
   },
 
@@ -309,17 +310,6 @@ export const API_CONFIG = {
     CREATE: `${API_BASE_URL}/api/coupon-usage`,
     UPDATE: (id) => `${API_BASE_URL}/api/coupon-usage/${id}`,
     DELETE: (id) => `${API_BASE_URL}/api/coupon-usage/${id}`,
-  },
-
-  // Endpoints de reglas de canchas
-  FIELD_RULES: {
-    GET_ALL: `${API_BASE_URL}/api/field-rules`,
-    GET_BY_ID: (id) => `${API_BASE_URL}/api/field-rules/${id}`,
-    GET_BY_FIELD: (fieldId) => `${API_BASE_URL}/api/field-rules/field/${fieldId}`,
-    CREATE: `${API_BASE_URL}/api/field-rules`,
-    CREATE_MULTIPLE: `${API_BASE_URL}/api/field-rules/multiple`,
-    UPDATE: (id) => `${API_BASE_URL}/api/field-rules/${id}`,
-    DELETE: (id) => `${API_BASE_URL}/api/field-rules/${id}`,
   },
 
   // Endpoints de videos de canchas

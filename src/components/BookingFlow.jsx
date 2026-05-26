@@ -15,7 +15,7 @@ import FieldSelectionPanel from './booking/FieldSelectionPanel'
 import ConfirmationPanel from './booking/ConfirmationPanel'
 import useBookingCalendar from '../hooks/useBookingCalendar'
 import useFieldAvailability from '../hooks/useFieldAvailability'
-import { getMainAmenities } from '../utils/bookingHelpers'
+import { getFieldAmenities } from '../utils/bookingHelpers'
 
 // Fix para los iconos de Leaflet
 delete L.Icon.Default.prototype._getIconUrl
@@ -468,7 +468,7 @@ const BookingFlow = ({ onPaymentStep, isAuthenticated = false }) => {
                 selectedCustomer={selectedCustomer}
                 isClientAuthenticated={isClientAuthenticated}
                 getSportImages={getSportImages}
-                getMainAmenities={getMainAmenities}
+                getFieldAmenities={getFieldAmenities}
                 calculatePriceWithDiscount={calculatePriceWithDiscount}
                 canConfirmReservation={canConfirmReservation()}
                 onChangeConfirmationImage={changeConfirmationImage}

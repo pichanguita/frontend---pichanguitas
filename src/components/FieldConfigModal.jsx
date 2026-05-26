@@ -2,11 +2,7 @@ import React from 'react'
 import { Clock, Wrench, DollarSign, Ban, Settings } from 'lucide-react'
 import useFieldConfig from '../hooks/useFieldConfig'
 import { generateScheduleTimeRanges } from '../utils/timeSlots'
-import {
-  daysOfWeek,
-  fieldTypes,
-  getFieldTypeInfo,
-} from '../utils/field-config/fieldConfigConstants'
+import { daysOfWeek } from '../utils/field-config/fieldConfigConstants'
 import ConfigModal from './field-config/ConfigModal'
 import TabNavigation from './field-config/TabNavigation'
 import ScheduleTab from './field-config/tabs/ScheduleTab'
@@ -28,7 +24,6 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
     handleAddSpecialPrice,
     handleUpdateSpecialPrice,
     handleRemoveSpecialPrice,
-    handleToggleAmenity,
     handleAddRule,
     handleRemoveRule,
     handleAddCustomImage,
@@ -36,7 +31,6 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
     handleRemoveCustomImage,
     handleCancellationChange,
     handleGeneralChange,
-    handleFieldTypeChange,
     handleSave,
   } = useFieldConfig(field, isOpen, onClose, onSave)
 
@@ -103,11 +97,7 @@ const FieldConfigModal = ({ isOpen, onClose, onSave, field }) => {
         {activeTab === 'general' && (
           <GeneralTab
             config={config}
-            fieldTypes={fieldTypes}
-            getFieldTypeInfo={getFieldTypeInfo}
             onGeneralChange={handleGeneralChange}
-            onFieldTypeChange={handleFieldTypeChange}
-            onToggleAmenity={handleToggleAmenity}
             onAddRule={handleAddRule}
             onRemoveRule={handleRemoveRule}
             onAddCustomImage={handleAddCustomImage}

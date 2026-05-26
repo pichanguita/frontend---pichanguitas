@@ -29,14 +29,12 @@ const BadgeUnlockedNotification = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
-          onClick={closeNotification}
         >
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             exit={{ scale: 0, rotate: 180 }}
             transition={{ type: 'spring', duration: 0.8 }}
-            onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-3xl p-8 max-w-md w-full text-center relative overflow-hidden shadow-2xl"
           >
             {/* Cierre */}

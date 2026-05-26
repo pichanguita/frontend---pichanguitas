@@ -46,7 +46,6 @@ const useBookingStore = create((set, get) => ({
   selectedTimeRanges: [],
   phoneNumber: '',
   paymentMethod: '',
-  paymentVoucher: null,
   reservationSummary: null,
   availableFreeHours: 0, // Horas gratis acumuladas por el cliente (cargadas del backend)
   freeHoursToUse: 0, // Horas gratis a aplicar en la reserva actual (selección del cliente)

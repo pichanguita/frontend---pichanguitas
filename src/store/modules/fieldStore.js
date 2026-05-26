@@ -16,6 +16,7 @@ import {
   createSportTypeAPI,
   updateSportTypeAPI,
   deleteSportTypeAPI,
+  reorderSportTypesAPI,
 } from '../../services/sportTypes/sportTypesService'
 import useAuthStore from '../authStore'
 import useAlertStore from '../alertStore'
@@ -606,6 +607,39 @@ const useFieldStore = create((set, get) => ({
       return true
     } catch (error) {
       set({ error: error.message, isLoading: false })
+      throw error
+    }
+  },
+
+  /**
+   * Reordenar tipos de deportes (super admin) - Integrado con backend
+   * Aplica el nuevo orden de forma optimista y lo persiste. Si falla, revierte.
+   * @param {Array<number>} orderedIds - IDs en el nuevo orden deseado
+   * @returns {Promise<Array>} Lista de deportes ordenada
+   */
+  reorderSportTypes: async (orderedIds) => {
+    const { sportTypes } = get()
+    const previous = sportTypes
+
+    // Reordenar localmente de forma optimista según orderedIds.
+    const byId = new Map(sportTypes.map((sport) => [sport.id, sport]))
+    const reordered = orderedIds.map((id) => byId.get(id)).filter(Boolean)
+    // Anexar al final cualquier deporte no incluido en orderedIds (p. ej. si la
+    // lista estaba filtrada), preservando su presencia en el estado.
+    const remaining = sportTypes.filter((sport) => !orderedIds.includes(sport.id))
+    set({ sportTypes: [...reordered, ...remaining], error: null })
+
+    try {
+      const token = useAuthStore.getState().token
+      if (!token) {
+        throw new Error('No hay token de autenticación')
+      }
+
+      await reorderSportTypesAPI(orderedIds, token)
+      return get().sportTypes
+    } catch (error) {
+      // Revertir al orden previo si la persistencia falla.
+      set({ sportTypes: previous, error: error.message })
       throw error
     }
   },

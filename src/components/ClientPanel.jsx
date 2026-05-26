@@ -411,17 +411,12 @@ const ClientPanel = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-            onClick={() => {
-              setIsBookingModalOpen(false)
-              setBookingView('booking')
-            }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-6xl h-[95vh] sm:h-auto sm:max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Header del Modal */}
               <div className="sticky top-0 bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-start gap-2 rounded-t-2xl z-10">

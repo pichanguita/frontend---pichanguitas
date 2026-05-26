@@ -22,7 +22,6 @@ export * from './videoTutorials'
 export * from './fieldImages'
 export * from './fieldSpecialPricing'
 export * from './fieldMaintenanceSchedules'
-export * from './fieldRules'
 export * from './fieldVideos'
 export * from './fieldEquipment'
 

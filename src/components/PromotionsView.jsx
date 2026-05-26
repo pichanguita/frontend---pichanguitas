@@ -537,18 +537,12 @@ const PromotionsView = ({ onNavigateToFields }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={() => {
-              if (isClaiming) return
-              setShowClaimModal(false)
-              setSelectedPromotion(null)
-            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Header verde */}
               <div className="bg-[#22c55e] p-6 text-white text-center">

@@ -2,12 +2,12 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { MapPin, DollarSign, Clock } from 'lucide-react'
 import { getFieldImage, handleFieldImageError } from '../../data/fieldImages'
-import { getMainAmenities } from '../../utils/bookingHelpers'
+import { getFieldAmenities } from '../../utils/bookingHelpers'
 import { SPORT_ICONS } from '../../utils/fields-showcase/constants'
 import StatusBadge from './StatusBadge'
 
 const FieldCard = ({ field, onFieldClick, variants }) => {
-  const mainAmenities = getMainAmenities(field)
+  const fieldAmenities = getFieldAmenities(field)
 
   return (
     <motion.div
@@ -37,7 +37,7 @@ const FieldCard = ({ field, onFieldClick, variants }) => {
 
         {/* Amenities Icons on Image */}
         <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
-          {mainAmenities.map((amenity, idx) => (
+          {fieldAmenities.map((amenity, idx) => (
             <div
               key={idx}
               className={`${amenity.color} text-white rounded-full p-1.5 shadow-lg backdrop-blur-sm bg-opacity-90 hover:bg-opacity-100 transition-all group/icon`}

@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import {
-  X,
-  Bell,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  XCircle,
-  Calendar,
-  MapPin,
-  User,
-} from 'lucide-react'
+import { X, Bell, CheckCircle, AlertTriangle, Info, XCircle, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import useAlertStore from '../store/alertStore'
 
@@ -106,7 +96,6 @@ const ToastNotification = () => {
 
   const getIcon = (type, _priority) => {
     switch (type) {
-      case 'booking_alert':
       case 'new_reservation':
         return Calendar
       case 'field_approved':
@@ -136,7 +125,6 @@ const ToastNotification = () => {
     }
 
     switch (type) {
-      case 'booking_alert':
       case 'new_reservation':
         return {
           bg: 'bg-blue-50 border-blue-200',
@@ -276,30 +264,6 @@ const ToastNotification = () => {
                   </div>
 
                   <p className={`text-sm mt-1 ${colors.text}`}>{alert.message}</p>
-
-                  {/* Detalles adicionales para reservas */}
-                  {alert.type === 'booking_alert' && alert.booking && (
-                    <div className="mt-3 space-y-1">
-                      {alert.booking.clientName && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <User className="w-3 h-3" />
-                          <span>{alert.booking.clientName}</span>
-                        </div>
-                      )}
-                      {alert.booking.fieldName && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <MapPin className="w-3 h-3" />
-                          <span>{alert.booking.fieldName}</span>
-                        </div>
-                      )}
-                      {alert.booking.date && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <Calendar className="w-3 h-3" />
-                          <span>{new Date(alert.booking.date).toLocaleDateString('es-PE')}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Timestamp y prioridad */}
                   <div className="flex items-center justify-between mt-2">

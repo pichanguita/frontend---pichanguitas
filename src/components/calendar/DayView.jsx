@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar as CalendarIcon, Clock, Phone, MapPin, ChevronLeft } from 'lucide-react'
 import { formatDate, formatTime } from '../../utils/calendar/formatters'
 import { VIEW_MODES } from '../../utils/calendar/constants'
+import { CASH_PAYMENT_LABEL } from '../../constants/paymentStatus'
 
 const DayView = ({ selectedDate, getFieldName, getFieldLocation, setViewMode }) => {
   return (
@@ -70,7 +71,7 @@ const DayView = ({ selectedDate, getFieldName, getFieldLocation, setViewMode }) 
                               <div className="h-4 w-px bg-secondary-300"></div>
                               <div className="flex items-center space-x-1">
                                 <span className="text-amber-700 font-semibold text-sm">
-                                  💵 Efectivo
+                                  💵 {CASH_PAYMENT_LABEL}
                                 </span>
                               </div>
                             </>

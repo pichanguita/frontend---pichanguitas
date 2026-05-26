@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
 import useAuthStore from '../store/authStore'
 import { parseLocalDate } from '../utils/dateFormatters'
-import { getMainAmenities } from '../utils/bookingHelpers'
+import { getFieldAmenities } from '../utils/bookingHelpers'
 import { getAmenityIconComponent } from '../utils/amenityIconRegistry'
 
 const FieldsList = ({ onFieldSelect }) => {
@@ -191,7 +191,7 @@ const FieldsList = ({ onFieldSelect }) => {
 
                       {/* Amenities Icons on Image */}
                       <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
-                        {getMainAmenities(field).map((amenity, idx) => (
+                        {getFieldAmenities(field).map((amenity, idx) => (
                           <div
                             key={idx}
                             className={`${amenity.color} text-white rounded-full p-2 shadow-lg backdrop-blur-sm bg-opacity-90 hover:bg-opacity-100 transition-all`}
@@ -275,7 +275,7 @@ const FieldsList = ({ onFieldSelect }) => {
                           {/* Comodidades */}
                           {field.amenities && field.amenities.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-4">
-                              {field.amenities.slice(0, 4).map((amenity) => {
+                              {field.amenities.map((amenity) => {
                                 const Icon = getAmenityIconComponent(amenity.icon_name)
                                 return (
                                   <span
@@ -287,11 +287,6 @@ const FieldsList = ({ onFieldSelect }) => {
                                   </span>
                                 )
                               })}
-                              {field.amenities.length > 4 && (
-                                <span className="inline-flex items-center px-2 py-1 bg-secondary-100 text-secondary-600 text-xs font-medium rounded-full">
-                                  +{field.amenities.length - 4} más
-                                </span>
-                              )}
                             </div>
                           )}
 

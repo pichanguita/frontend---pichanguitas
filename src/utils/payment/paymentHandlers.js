@@ -82,6 +82,10 @@ export const handleViewPaymentDetails = (payment) => {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
+            // dueDate proviene de la columna @db.Date del backend (medianoche UTC).
+            // Formatear en 'UTC' muestra el día exacto de vencimiento sin desfasarse
+            // por la zona horaria del navegador. Invariante local/Railway.
+            timeZone: 'UTC',
           })}</p>
         </div>
         ${

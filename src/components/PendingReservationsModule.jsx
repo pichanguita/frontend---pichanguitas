@@ -18,6 +18,7 @@ import {
 import { motion } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
 import useFieldStore from '../store/modules/fieldStore'
+import { CASH_PAYMENT_LABEL } from '../constants/paymentStatus'
 import Swal from 'sweetalert2'
 import { parseLocalDate } from '../utils/dateFormatters'
 import { resolveMediaUrl } from '../utils/mediaUrl'
@@ -736,7 +737,7 @@ const PendingReservationsModule = () => {
                         <span className="text-sm font-medium text-blue-900">
                           Método de pago:{' '}
                           {reservation.paymentMethod === 'efectivo'
-                            ? 'Efectivo'
+                            ? CASH_PAYMENT_LABEL
                             : reservation.paymentMethod}
                         </span>
                       </div>

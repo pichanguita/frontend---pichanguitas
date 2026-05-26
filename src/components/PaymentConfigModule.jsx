@@ -627,14 +627,8 @@ const PaymentConfigModule = () => {
 
       {/* Modal Mis Cuentas de Cobro */}
       {showMethodsModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowMethodsModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-bold">Mis Cuentas de Cobro</h3>
               <button

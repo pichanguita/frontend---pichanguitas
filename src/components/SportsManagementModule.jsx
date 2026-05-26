@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Trophy,
   Plus,
@@ -10,12 +10,100 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  GripVertical,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion'
 import useFieldStore from '../store/modules/fieldStore'
 import useAuthStore from '../store/authStore'
 import { fetchSportTypeFieldsCount } from '../services/sportTypes/sportTypesService'
 import Swal from 'sweetalert2'
+
+/**
+ * Contenido visual de una fila de deporte (ícono, nombre, descripción, color y
+ * acciones). Compartido entre la vista reordenable y la vista de búsqueda para
+ * evitar duplicación de marcado.
+ */
+const SportRowContent = ({ sport, onEdit, onDelete, isSubmitting }) => (
+  <>
+    <div
+      className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+      style={{ backgroundColor: (sport.color || '#22c55e') + '20' }}
+    >
+      {sport.icon || '⚽'}
+    </div>
+    <div className="flex-1 min-w-0">
+      <h3 className="font-semibold text-secondary-900 truncate">{sport.name}</h3>
+      {sport.description && (
+        <p className="text-sm text-secondary-600 truncate">{sport.description}</p>
+      )}
+    </div>
+    <div
+      className="w-5 h-5 rounded-full border-2 border-white shadow-sm flex-shrink-0"
+      style={{ backgroundColor: sport.color || '#22c55e' }}
+      title="Color del deporte"
+    />
+    <div className="flex gap-1 flex-shrink-0">
+      <button
+        onClick={() => onEdit(sport)}
+        disabled={isSubmitting}
+        className={`p-2 rounded-lg transition-colors ${
+          isSubmitting ? 'text-secondary-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'
+        }`}
+        title="Editar"
+      >
+        <Edit3 className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => onDelete(sport)}
+        disabled={isSubmitting}
+        className={`p-2 rounded-lg transition-colors ${
+          isSubmitting ? 'text-secondary-400 cursor-not-allowed' : 'text-red-600 hover:bg-red-50'
+        }`}
+        title="Eliminar"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  </>
+)
+
+/**
+ * Fila de deporte arrastrable. Usa un "handle" dedicado (GripVertical) para
+ * iniciar el arrastre, de modo que los botones de editar/eliminar sigan siendo
+ * clicables sin disparar el reordenamiento.
+ */
+const SortableSportItem = ({ sport, onEdit, onDelete, isSubmitting, onDragEnd }) => {
+  const dragControls = useDragControls()
+
+  return (
+    <Reorder.Item
+      value={sport}
+      dragListener={false}
+      dragControls={dragControls}
+      onDragEnd={onDragEnd}
+      whileDrag={{ scale: 1.02, boxShadow: '0 10px 25px rgba(0,0,0,0.15)' }}
+      className="list-none"
+    >
+      <div className="flex items-center gap-3 border border-secondary-200 rounded-lg p-3 bg-white hover:shadow-md transition-shadow">
+        <button
+          type="button"
+          onPointerDown={(event) => dragControls.start(event)}
+          className="cursor-grab active:cursor-grabbing touch-none p-1 text-secondary-400 hover:text-secondary-600"
+          title="Arrastrar para reordenar"
+          aria-label="Arrastrar para reordenar"
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+        <SportRowContent
+          sport={sport}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+    </Reorder.Item>
+  )
+}
 
 /**
  * SPORTS MANAGEMENT MODULE
@@ -37,6 +125,7 @@ const SportsManagementModule = () => {
     addSportType,
     updateSportType,
     deleteSportType,
+    reorderSportTypes,
     isLoading,
   } = useFieldStore()
 
@@ -52,9 +141,10 @@ const SportsManagementModule = () => {
   })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Evita que el modal se cierre cuando un drag de selección de texto inicia
-  // dentro del modal y termina fuera (mouseup sobre el overlay).
-  const overlayMouseDownTargetRef = useRef(null)
+  // Orden local para el arrastre. Se sincroniza con el store; mantenerlo aparte
+  // permite un arrastre fluido sin re-render por cada movimiento intermedio.
+  const [orderedSports, setOrderedSports] = useState([])
+  const [isSavingOrder, setIsSavingOrder] = useState(false)
 
   // Iconos disponibles para deportes
   const availableIcons = [
@@ -115,10 +205,48 @@ const SportsManagementModule = () => {
     fetchData()
   }, []) // Solo ejecutar al montar
 
+  // Mantener el orden local sincronizado con el store (carga, alta, edición,
+  // eliminación o reordenamiento persistido actualizan sportTypes).
+  useEffect(() => {
+    if (Array.isArray(sportTypes)) {
+      setOrderedSports(sportTypes)
+    }
+  }, [sportTypes])
+
   // Filtrar deportes según búsqueda
   const filteredSports = Array.isArray(sportTypes)
     ? sportTypes.filter((sport) => sport?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
     : []
+
+  // Con búsqueda activa el arrastre se deshabilita para no romper el orden global.
+  const isSearching = searchTerm.trim() !== ''
+
+  // Actualiza el orden local mientras se arrastra (no persiste aún).
+  const handleReorder = (newOrder) => {
+    setOrderedSports(newOrder)
+  }
+
+  // Persiste el nuevo orden al soltar, solo si realmente cambió.
+  const handlePersistOrder = async () => {
+    const newIds = orderedSports.map((sport) => sport.id)
+    const currentIds = sportTypes.map((sport) => sport.id)
+    if (newIds.join(',') === currentIds.join(',')) return
+
+    setIsSavingOrder(true)
+    try {
+      await reorderSportTypes(newIds)
+    } catch (err) {
+      console.error('❌ Error al reordenar deportes:', err)
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al reordenar',
+        text: err.message || 'No se pudo guardar el nuevo orden. Intenta nuevamente.',
+        confirmButtonColor: '#ef4444',
+      })
+    } finally {
+      setIsSavingOrder(false)
+    }
+  }
 
   const handleOpenAddModal = () => {
     setEditingSport(null)
@@ -399,64 +527,65 @@ const SportsManagementModule = () => {
             <Loader2 className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-3" />
             <p className="text-secondary-600">Cargando deportes...</p>
           </div>
-        ) : filteredSports.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-            {filteredSports.map((sport) => (
-              <motion.div
-                key={sport.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="border border-secondary-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-3">
+        ) : (isSearching ? filteredSports : orderedSports).length > 0 ? (
+          <div className="p-6">
+            {/* Aviso de reordenamiento / estado de guardado */}
+            <div className="flex items-center justify-between mb-4 gap-3">
+              {isSearching ? (
+                <p className="text-sm text-secondary-500">
+                  Limpia la búsqueda para reordenar los deportes.
+                </p>
+              ) : (
+                <p className="text-sm text-secondary-500 flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 flex-shrink-0" />
+                  Arrastra para cambiar el orden en que los deportes aparecen al reservar.
+                </p>
+              )}
+              {isSavingOrder && (
+                <span className="text-xs text-primary-600 flex items-center gap-1 flex-shrink-0">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Guardando orden...
+                </span>
+              )}
+            </div>
+
+            {isSearching ? (
+              // Vista de búsqueda: lista estática (no arrastrable).
+              <div className="space-y-3">
+                {filteredSports.map((sport) => (
                   <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-                    style={{ backgroundColor: sport.color + '20' }}
+                    key={sport.id}
+                    className="flex items-center gap-3 border border-secondary-200 rounded-lg p-3 bg-white"
                   >
-                    {sport.icon || '⚽'}
+                    <SportRowContent
+                      sport={sport}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      isSubmitting={isSubmitting}
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleOpenEditModal(sport)}
-                      disabled={isSubmitting}
-                      className={`p-2 rounded-lg transition-colors ${
-                        isSubmitting
-                          ? 'text-secondary-400 cursor-not-allowed'
-                          : 'text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title="Editar"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(sport)}
-                      disabled={isSubmitting}
-                      className={`p-2 rounded-lg transition-colors ${
-                        isSubmitting
-                          ? 'text-secondary-400 cursor-not-allowed'
-                          : 'text-red-600 hover:bg-red-50'
-                      }`}
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <h3 className="font-semibold text-secondary-900 mb-1">{sport.name}</h3>
-                {sport.description && (
-                  <p className="text-sm text-secondary-600">{sport.description}</p>
-                )}
-
-                <div className="mt-3 flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-                    style={{ backgroundColor: sport.color }}
+                ))}
+              </div>
+            ) : (
+              // Vista normal: lista arrastrable para definir el orden global.
+              <Reorder.Group
+                axis="y"
+                values={orderedSports}
+                onReorder={handleReorder}
+                className="space-y-3"
+              >
+                {orderedSports.map((sport) => (
+                  <SortableSportItem
+                    key={sport.id}
+                    sport={sport}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    isSubmitting={isSubmitting}
+                    onDragEnd={handlePersistOrder}
                   />
-                  <span className="text-xs text-secondary-500">Color del deporte</span>
-                </div>
-              </motion.div>
-            ))}
+                ))}
+              </Reorder.Group>
+            )}
           </div>
         ) : (
           // ✅ ESTADO VACÍO
@@ -477,25 +606,12 @@ const SportsManagementModule = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onMouseDown={(e) => {
-              overlayMouseDownTargetRef.current = e.target
-            }}
-            onClick={(e) => {
-              if (
-                overlayMouseDownTargetRef.current === e.currentTarget &&
-                e.target === e.currentTarget
-              ) {
-                setShowAddModal(false)
-              }
-              overlayMouseDownTargetRef.current = null
-            }}
           >
             <motion.div
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
               className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">

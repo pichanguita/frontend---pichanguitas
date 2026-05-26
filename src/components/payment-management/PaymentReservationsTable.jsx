@@ -10,6 +10,7 @@ import {
   CreditCard,
   UserX,
   XCircle,
+  Globe,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { getStatusColor } from '../../utils/payment-management/paymentManagementHelpers'
@@ -80,6 +81,21 @@ const PaymentReservationsTable = ({
                 paymentStatus !== 'fully_paid' &&
                 paymentStatus !== 'paid'
 
+              // Reserva pública hecha desde la landing: es un 'customer_booking'
+              // cuyo cliente NO tiene cuenta de login (customer_user_id == null).
+              // Distingue de reservas creadas por admin ('admin_booking') y de
+              // clientes registrados que reservan desde su panel.
+              const customerUserId = reservation.customerUserId ?? reservation.customer_user_id
+              const isFromLanding =
+                reservation.type === 'customer_booking' && customerUserId == null
+              const phone = reservation.phoneNumber || reservation.customer_phone
+              // Para reservas de landing, el identificador del cliente es su teléfono
+              // (la landing no pide nombre). Esto también corrige registros antiguos
+              // que quedaron guardados como "admin" sin necesidad de migrar datos.
+              const displayName = isFromLanding
+                ? phone || 'N/A'
+                : reservation.customerName || reservation.customer_name || 'N/A'
+
               return (
                 <motion.tr
                   key={reservation.id || index}
@@ -100,11 +116,17 @@ const PaymentReservationsTable = ({
                     <div>
                       <p className="font-medium text-secondary-900 flex items-center gap-2">
                         <User className="w-4 h-4 text-secondary-400" />
-                        {reservation.customerName || reservation.customer_name || 'N/A'}
+                        {displayName}
+                        {isFromLanding && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">
+                            <Globe className="w-3 h-3" />
+                            Desde Landing
+                          </span>
+                        )}
                       </p>
                       <p className="text-sm text-secondary-600 flex items-center gap-2 mt-1">
                         <Phone className="w-3 h-3" />
-                        {reservation.phoneNumber || reservation.customer_phone || 'N/A'}
+                        {phone || 'N/A'}
                       </p>
                     </div>
                   </td>

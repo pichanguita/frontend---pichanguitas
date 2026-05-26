@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
-import { INITIAL_CONFIG, getSuggestedCapacity } from '../utils/field-config/fieldConfigConstants'
+import { INITIAL_CONFIG } from '../utils/field-config/fieldConfigConstants'
 import {
   createMaintenanceItem,
   createSpecialPricingItem,
@@ -156,22 +156,6 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
       ...prev,
       specialPricing: prev.specialPricing.filter((item) => item.id !== id),
     }))
-  }
-
-  /**
-   * Activa/desactiva una amenidad del catálogo en la configuración.
-   * El state guarda objetos {key,label,icon_name,color_class} para que el
-   * GeneralTab pueda render directamente.
-   */
-  const handleToggleAmenity = (key, isChecked) => {
-    setConfig((prev) => {
-      const current = Array.isArray(prev.amenities) ? prev.amenities : []
-      if (isChecked) {
-        if (current.some((a) => a?.key === key)) return prev
-        return { ...prev, amenities: [...current, { key }] }
-      }
-      return { ...prev, amenities: current.filter((a) => a?.key !== key) }
-    })
   }
 
   const handleAddRule = async () => {
@@ -514,16 +498,6 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
     setConfig((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleFieldTypeChange = (newType) => {
-    const suggestedCapacity = getSuggestedCapacity(newType)
-    setConfig((prev) => ({
-      ...prev,
-      fieldType: newType,
-      sportType: newType,
-      capacity: suggestedCapacity,
-    }))
-  }
-
   const handleSave = async () => {
     setIsLoading(true)
     try {
@@ -606,7 +580,6 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
     handleAddSpecialPrice,
     handleUpdateSpecialPrice,
     handleRemoveSpecialPrice,
-    handleToggleAmenity,
     handleAddRule,
     handleRemoveRule,
     handleAddCustomImage,
@@ -614,7 +587,6 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
     handleRemoveCustomImage,
     handleCancellationChange,
     handleGeneralChange,
-    handleFieldTypeChange,
     handleSave,
   }
 }

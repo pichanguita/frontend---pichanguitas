@@ -42,6 +42,64 @@ const ModalsContainer = ({
     closeBookingModal,
   } = closers
 
+  // Handler único de creación de reserva, compartido por ambos flujos:
+  // - click en una fecha del calendario (modal `clientRegistration`)
+  // - botón "Nueva Reserva" (modal `booking`)
+  // Antes el flujo del calendario tenía un onSave de marcador de posición que
+  // NO persistía la reserva (solo mostraba un toast de "Cliente Registrado"),
+  // por eso la reserva no se generaba al hacer click en el calendario.
+  const handleCreateReservation = async (clientRegistration) => {
+    try {
+      // ✅ Mapear paymentStatus del frontend al formato del backend
+      const mapPaymentStatus = (frontendStatus) => {
+        const statusMap = {
+          pending: 'pending',
+          paid: 'paid',
+          advance: 'partial', // 🔧 Mapear 'advance' a 'partial' para el backend
+        }
+        return statusMap[frontendStatus] || frontendStatus
+      }
+
+      // ✅ Construir datos en formato snake_case para el backend
+      const reservationDataForBackend = {
+        field_id: parseInt(clientRegistration.fieldId),
+        customer_id: clientRegistration.customerId,
+        date: clientRegistration.date,
+        start_time: clientRegistration.startTime,
+        end_time: clientRegistration.endTime,
+        hours: clientRegistration.duration,
+        subtotal: clientRegistration.originalAmount || clientRegistration.totalAmount, // Precio original sin descuento
+        discount: clientRegistration.discountAmount || 0, // Descuento aplicado (specialPricing)
+        total_price: clientRegistration.totalAmount, // Precio final con descuento
+        advance_payment: clientRegistration.advanceAmount || 0,
+        remaining_payment: clientRegistration.remainingAmount || 0,
+        payment_method: clientRegistration.paymentMethod || null,
+        payment_status: mapPaymentStatus(clientRegistration.paymentStatus),
+        phone_number: clientRegistration.phone,
+        type: 'admin_booking', // ✅ Indica que es reserva creada por admin/super_admin
+      }
+
+      // ✅ Crear reserva usando la API (guarda en backend)
+      await createReservationWithAPI(reservationDataForBackend)
+
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Reserva Creada!',
+        text: `La reserva para ${clientRegistration.name} ha sido creada exitosamente`,
+        timer: 2000,
+        showConfirmButton: false,
+      })
+    } catch (error) {
+      console.error('❌ Error al crear reserva:', error)
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'No se pudo crear la reserva. Intenta nuevamente.',
+        confirmButtonColor: '#22c55e',
+      })
+    }
+  }
+
   return (
     <>
       {/* New Field Modal */}
@@ -89,20 +147,11 @@ const ModalsContainer = ({
       <ClientRegistrationModal
         isOpen={modals.clientRegistration}
         onClose={closeClientRegistrationModal}
-        onSave={(clientData) => {
-          const clientDataWithDate = {
-            ...clientData,
-            date: selectedDate?.toISOString().split('T')[0],
-          }
-          closeClientRegistrationModal()
-          Swal.fire({
-            icon: 'success',
-            title: 'Cliente Registrado',
-            text: `${clientData.name} ha sido registrado exitosamente`,
-            timer: 2000,
-            showConfirmButton: false,
-          })
-        }}
+        title="Nueva Reserva"
+        description="Selecciona o registra el cliente y completa los datos de la reserva"
+        submitText="Crear Reserva"
+        submitLoadingText="Creando..."
+        onSave={handleCreateReservation}
         selectedDate={selectedDate}
       />
 
@@ -124,57 +173,7 @@ const ModalsContainer = ({
         description="Selecciona o registra el cliente y completa los datos de la reserva"
         submitText="Crear Reserva"
         submitLoadingText="Creando..."
-        onSave={async (clientRegistration) => {
-          try {
-            // ✅ Mapear paymentStatus del frontend al formato del backend
-            const mapPaymentStatus = (frontendStatus) => {
-              const statusMap = {
-                pending: 'pending',
-                paid: 'paid',
-                advance: 'partial', // 🔧 Mapear 'advance' a 'partial' para el backend
-              }
-              return statusMap[frontendStatus] || frontendStatus
-            }
-
-            // ✅ Construir datos en formato snake_case para el backend
-            const reservationDataForBackend = {
-              field_id: parseInt(clientRegistration.fieldId),
-              customer_id: clientRegistration.customerId,
-              date: clientRegistration.date,
-              start_time: clientRegistration.startTime,
-              end_time: clientRegistration.endTime,
-              hours: clientRegistration.duration,
-              subtotal: clientRegistration.originalAmount || clientRegistration.totalAmount, // Precio original sin descuento
-              discount: clientRegistration.discountAmount || 0, // Descuento aplicado (specialPricing)
-              total_price: clientRegistration.totalAmount, // Precio final con descuento
-              advance_payment: clientRegistration.advanceAmount || 0,
-              remaining_payment: clientRegistration.remainingAmount || 0,
-              payment_method: clientRegistration.paymentMethod || null,
-              payment_status: mapPaymentStatus(clientRegistration.paymentStatus),
-              phone_number: clientRegistration.phone,
-              type: 'admin_booking', // ✅ Indica que es reserva creada por admin/super_admin
-            }
-
-            // ✅ Crear reserva usando la API (guarda en backend)
-            await createReservationWithAPI(reservationDataForBackend)
-
-            await Swal.fire({
-              icon: 'success',
-              title: '¡Reserva Creada!',
-              text: `La reserva para ${clientRegistration.name} ha sido creada exitosamente`,
-              timer: 2000,
-              showConfirmButton: false,
-            })
-          } catch (error) {
-            console.error('❌ Error al crear reserva:', error)
-            await Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: error.message || 'No se pudo crear la reserva. Intenta nuevamente.',
-              confirmButtonColor: '#22c55e',
-            })
-          }
-        }}
+        onSave={handleCreateReservation}
         selectedDate={selectedDate}
       />
     </>

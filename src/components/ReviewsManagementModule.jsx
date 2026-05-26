@@ -84,6 +84,15 @@ const ReviewsManagementModule = () => {
     return userFields.map((f) => f.id)
   }, [userFields])
 
+  // Reseñas dentro del alcance del administrador actual: SOLO las de sus canchas.
+  // Las "Estadísticas Generales" se calculan sobre este subconjunto, no sobre
+  // todas las reseñas del sistema. El superadmin sin admin seleccionado ve la
+  // vista global; al seleccionar un admin se acota a sus canchas (userFieldIds).
+  const scopedReviews = useMemo(() => {
+    if (isSuperAdmin && selectedAdmin === 'all') return reviews
+    return reviews.filter((review) => userFieldIds.includes(review.fieldId))
+  }, [reviews, userFieldIds, isSuperAdmin, selectedAdmin])
+
   // Filtrar reviews
   const filteredReviews = useMemo(() => {
     return reviews
@@ -211,7 +220,7 @@ const ReviewsManagementModule = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Total Reseñas</p>
-              <p className="text-2xl font-bold text-gray-900">{reviews.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{scopedReviews.length}</p>
             </div>
           </div>
         </div>
@@ -224,7 +233,7 @@ const ReviewsManagementModule = () => {
             <div>
               <p className="text-sm text-gray-600">Reseñas Visibles</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reviews.filter((r) => r.isVisible).length}
+                {scopedReviews.filter((r) => r.isVisible).length}
               </p>
             </div>
           </div>
@@ -238,10 +247,10 @@ const ReviewsManagementModule = () => {
             <div>
               <p className="text-sm text-gray-600">Promedio General</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reviews.length > 0
+                {scopedReviews.length > 0
                   ? (
-                      reviews.reduce((sum, r) => sum + parseFloat(r.overallRating), 0) /
-                      reviews.length
+                      scopedReviews.reduce((sum, r) => sum + parseFloat(r.overallRating), 0) /
+                      scopedReviews.length
                     ).toFixed(1)
                   : '0.0'}
               </p>

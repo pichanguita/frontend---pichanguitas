@@ -107,6 +107,32 @@ export const updateSportTypeAPI = async (sportTypeId, updates, token) => {
 }
 
 /**
+ * Reordenar los tipos de deportes en el backend.
+ * @param {Array<number>} orderedIds - IDs en el nuevo orden deseado
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<Array>} Lista de tipos de deportes ya ordenada
+ */
+export const reorderSportTypesAPI = async (orderedIds, token) => {
+  try {
+    const response = await fetch(API_CONFIG.SPORT_TYPES.REORDER, {
+      method: 'PUT',
+      headers: getAuthHeaders(token),
+      body: JSON.stringify({ orderedIds }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al reordenar tipos de deportes')
+    }
+
+    return data.data || []
+  } catch (error) {
+    throw new Error(error.message || 'Error al reordenar tipos de deportes')
+  }
+}
+
+/**
  * Obtener la cantidad de canchas asociadas a un tipo de deporte.
  * Se usa para mostrar un mensaje informativo previo a la eliminación.
  * @param {string|number} sportTypeId - ID del tipo de deporte

@@ -536,14 +536,12 @@ const RegistrationRequestsModule = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[70] p-4"
-            onClick={closePreview}
           >
             <motion.div
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
               className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-3 p-4 border-b">
                 <div className="flex items-center gap-3 min-w-0 flex-1">

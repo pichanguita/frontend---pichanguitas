@@ -6,14 +6,14 @@ import { getAmenityIconComponent } from './amenityIconRegistry'
  * provenientes del backend joined con amenities_catalog) a un array listo para
  * renderizar como íconos: {Icon, color, label, key}.
  *
- * Sin hardcoding de labels ni íconos: todo viene del catálogo.
- * Limita a 6 entradas para no saturar la UI del cliente.
+ * Sin hardcoding de labels ni íconos: todo viene del catálogo. Devuelve TODAS
+ * las comodidades del campo (sin límite): el backend ya las entrega filtradas a
+ * activas y ordenadas por `amenities_catalog.sort_order`.
  */
-export const getMainAmenities = (field) => {
+export const getFieldAmenities = (field) => {
   if (!field?.amenities || !Array.isArray(field.amenities)) return []
   return field.amenities
     .filter((a) => a && a.key && a.label)
-    .slice(0, 6)
     .map((a) => ({
       key: a.key,
       label: a.label,

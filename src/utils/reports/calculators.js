@@ -5,6 +5,7 @@
 
 import { parseLocalDate } from '../dateFormatters'
 import { getReservationRevenue, getReservationTotalPrice } from './calculators/revenueCalculator'
+import { CASH_PAYMENT_LABEL } from '../../constants/paymentStatus'
 
 /**
  * Obtener la cancha más utilizada
@@ -187,7 +188,7 @@ export const calculateClientStats = (reservations, fields) => {
  */
 export const calculatePaymentMethodStats = (reservations, fields) => {
   const paymentMethods = {
-    efectivo: { name: 'Efectivo', count: 0, total: 0, percentage: 0 },
+    efectivo: { name: CASH_PAYMENT_LABEL, count: 0, total: 0, percentage: 0 },
     yape: { name: 'Yape', count: 0, total: 0, percentage: 0 },
     plin: { name: 'Plin', count: 0, total: 0, percentage: 0 },
     transferencia: { name: 'Transferencia', count: 0, total: 0, percentage: 0 },

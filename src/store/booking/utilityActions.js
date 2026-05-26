@@ -13,6 +13,7 @@ import {
   AVAILABLE_PAYMENT_METHODS,
 } from '../../services/fieldPaymentMethods/fieldPaymentMethodsService'
 import { fetchMyFreeHours } from '../../services/customers/customersService'
+import { CASH_PAYMENT_LABEL } from '../../constants/paymentStatus'
 
 export const createUtilityActions = (set, get) => ({
   // ==================== PAYMENT METHODS ====================
@@ -59,7 +60,7 @@ export const createUtilityActions = (set, get) => ({
         // Agregar Efectivo siempre al final (hardcodeado)
         const efectivoMethod = {
           id: 'efectivo',
-          name: 'Efectivo',
+          name: CASH_PAYMENT_LABEL,
           description: 'Pago en efectivo al llegar',
           hasQR: false,
           requiresVoucher: false,
@@ -75,7 +76,7 @@ export const createUtilityActions = (set, get) => ({
         const efectivoOnly = [
           {
             id: 'efectivo',
-            name: 'Efectivo',
+            name: CASH_PAYMENT_LABEL,
             description: 'Pago en efectivo al llegar',
             hasQR: false,
             requiresVoucher: false,
@@ -140,7 +141,6 @@ export const createUtilityActions = (set, get) => ({
       selectedTimeRanges: [],
       phoneNumber: '',
       paymentMethod: '',
-      paymentVoucher: null,
       reservationSummary: null,
       freeHoursToUse: 0, // Resetear horas gratis
       availableTimes: [],

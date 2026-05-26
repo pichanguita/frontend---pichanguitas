@@ -79,8 +79,6 @@ export const createStateSetters = (set, get) => ({
 
   setPaymentMethod: (method) => set({ paymentMethod: method }),
 
-  setPaymentVoucher: (voucher) => set({ paymentVoucher: voucher }),
-
   setLoading: (loading) => set({ isLoading: loading }),
 
   setFreeHoursToUse: (hours) => set({ freeHoursToUse: hours }),
