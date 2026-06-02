@@ -3,6 +3,38 @@
  */
 
 import { parseLocalDate } from '../dateFormatters'
+import {
+  RESERVATION_STATUS,
+  TERMINAL_RESERVATION_STATUSES,
+} from '../../constants/reservationStatus'
+import { PAYMENT_STATUS, PAID_PAYMENT_STATUSES } from '../../constants/paymentStatus'
+
+/**
+ * Normaliza el status de reserva soportando camelCase/snake_case y default.
+ */
+const getReservationStatus = (res) => res.status || RESERVATION_STATUS.PENDING
+
+/**
+ * Normaliza el payment_status soportando camelCase/snake_case.
+ */
+const getPaymentStatus = (res) => res.paymentStatus || res.payment_status
+
+/**
+ * Una reserva tiene el pago cerrado (no aparece como pendiente) cuando su
+ * payment_status es de cobro total, o su reserva está en un estado terminal
+ * (completada/cancelada/no se presentó). Fuente única usada por filtros y UI.
+ */
+const isPaymentSettled = (res) => {
+  const paymentStatus = getPaymentStatus(res)
+  const reservationStatus = getReservationStatus(res)
+  return (
+    PAID_PAYMENT_STATUSES.includes(paymentStatus) ||
+    paymentStatus === PAYMENT_STATUS.NO_SHOW ||
+    TERMINAL_RESERVATION_STATUSES.includes(reservationStatus)
+  )
+}
+
+export { isPaymentSettled }
 
 /**
  * Calcular montos para una reserva (total, adelanto, pendiente).
@@ -14,7 +46,8 @@ import { parseLocalDate } from '../dateFormatters'
 export const calculateAmounts = (reservation, fields) => {
   const totalRaw = reservation.totalPrice ?? reservation.total_price
   const advance = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
-  const pending = parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
+  const pending =
+    parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
   if (totalRaw === null || totalRaw === undefined) {
     if (fields) {
@@ -44,12 +77,11 @@ export const getStatusColor = (reservation) => {
   const resDate = parseLocalDate(reservation.date)
   resDate.setHours(0, 0, 0, 0)
 
-  // Normalizar payment_status: BD usa 'paid', 'partial', 'pending'
-  const paymentStatus = reservation.paymentStatus || reservation.payment_status
+  const paymentStatus = getPaymentStatus(reservation)
 
-  if (paymentStatus === 'fully_paid' || paymentStatus === 'paid') {
+  if (PAID_PAYMENT_STATUSES.includes(paymentStatus)) {
     return 'text-green-600 bg-green-50'
-  } else if (paymentStatus === 'no_show') {
+  } else if (paymentStatus === PAYMENT_STATUS.NO_SHOW) {
     return 'text-orange-600 bg-orange-50'
   } else if (resDate < today) {
     return 'text-red-600 bg-red-50'
@@ -148,7 +180,8 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
     // (reserva 100% cubierta por horas gratis) y debe procesarse normalmente.
     const totalRaw = reservation.totalPrice ?? reservation.total_price ?? 0
     const totalPrice = parseFloat(totalRaw) || 0
-    const advancePaid = parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
+    const advancePaid =
+      parseFloat(reservation.advancePayment ?? reservation.advance_payment ?? 0) || 0
     const pendingAmount =
       parseFloat(reservation.remainingPayment ?? reservation.remaining_payment ?? 0) || 0
 
@@ -161,9 +194,8 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
     }
 
     // Obtener status de la reserva (cancelled, pending, confirmed, completed, no_show)
-    const reservationStatus = reservation.status || 'pending'
-    // Normalizar payment_status: la BD usa 'paid', 'partial', 'pending', 'no_show'
-    const paymentStatus = reservation.paymentStatus || reservation.payment_status
+    const reservationStatus = getReservationStatus(reservation)
+    const paymentStatus = getPaymentStatus(reservation)
 
     // ============================================
     // RESERVAS CANCELADAS - No tienen pagos pendientes.
@@ -172,7 +204,7 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
     // re-sincroniza al monto completo si el refund se rechaza.
     // Aquí solo sumamos lo que ya está calculado.
     // ============================================
-    if (reservationStatus === 'cancelled') {
+    if (reservationStatus === RESERVATION_STATUS.CANCELLED) {
       stats.cancelledCount++
 
       const refundAmount = parseFloat(reservation.refundAmount ?? reservation.refund_amount) || 0
@@ -195,11 +227,17 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
       return
     }
 
-    // Resto de estados normales
-    if (paymentStatus === 'fully_paid' || paymentStatus === 'paid') {
+    // Resto de estados normales.
+    // Una reserva 'completed' es siempre un cobro total cerrado: se cuenta como
+    // completada aunque su payment_status estuviera desincronizado, alineando
+    // este conteo con el filtro de la tabla (isPaymentSettled).
+    if (
+      PAID_PAYMENT_STATUSES.includes(paymentStatus) ||
+      reservationStatus === RESERVATION_STATUS.COMPLETED
+    ) {
       stats.totalCollected += totalPrice
       stats.completedCount++
-    } else if (paymentStatus === 'no_show') {
+    } else if (paymentStatus === PAYMENT_STATUS.NO_SHOW) {
       stats.noShowCount++
 
       // En no_show no se persiste advance_kept (el monto retenido se deriva
@@ -220,7 +258,10 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
         stats.totalCollected += advancePaid
         stats.noShowRevenue += advancePaid
       }
-    } else if (paymentStatus === 'partially_paid' || paymentStatus === 'partial') {
+    } else if (
+      paymentStatus === PAYMENT_STATUS.PARTIALLY_PAID ||
+      paymentStatus === PAYMENT_STATUS.PARTIAL
+    ) {
       stats.totalCollected += advancePaid
       stats.totalPending += pendingAmount
       stats.pendingCount++
@@ -237,8 +278,9 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
       stats.pendingCount++
     }
 
-    // Verificar fechas para reservas no completamente pagadas
-    if (paymentStatus !== 'fully_paid' && paymentStatus !== 'paid' && paymentStatus !== 'no_show') {
+    // Verificar fechas solo para reservas con pago aún abierto (mismo criterio
+    // que el filtro de la tabla): excluye pagadas, no-show y terminales.
+    if (!isPaymentSettled(reservation)) {
       const resDate = parseLocalDate(reservation.date)
       resDate.setHours(0, 0, 0, 0)
 
@@ -263,29 +305,20 @@ export const filterReservations = (reservations, filters) => {
   const { activeTab, searchTerm, selectedField, selectedDateRange } = filters
   let filtered = [...reservations]
 
-  // Filtrar por estado de pago y estado de reserva
-  // Normalizar payment_status: la BD usa 'paid', 'partial', 'pending', 'no_show'
-  // Normalizar status: la BD usa 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'
+  // Filtrar por estado de pago y estado de reserva.
+  // "Pendiente de pago" = pago NO cerrado: ni cobrado, ni no-show, ni en un
+  // estado de reserva terminal (completed/cancelled/no_show). Por eso se usa
+  // isPaymentSettled, que considera el `status` además del `payment_status`:
+  // una reserva ya 'completed' jamás debe listarse como pendiente aunque su
+  // payment_status haya quedado desincronizado.
   if (activeTab === 'pending') {
-    filtered = filtered.filter((res) => {
-      const paymentStatus = res.paymentStatus || res.payment_status
-      const reservationStatus = res.status || 'pending'
-      // Excluir canceladas y no-show de los pendientes
-      return (
-        reservationStatus !== 'cancelled' &&
-        paymentStatus !== 'fully_paid' &&
-        paymentStatus !== 'paid' &&
-        paymentStatus !== 'no_show'
-      )
-    })
+    filtered = filtered.filter((res) => !isPaymentSettled(res))
   } else if (activeTab === 'completed') {
     filtered = filtered.filter((res) => {
-      const paymentStatus = res.paymentStatus || res.payment_status
-      const reservationStatus = res.status || 'pending'
-      // Excluir canceladas de los completados
+      const reservationStatus = getReservationStatus(res)
       return (
-        reservationStatus !== 'cancelled' &&
-        (paymentStatus === 'fully_paid' || paymentStatus === 'paid')
+        reservationStatus !== RESERVATION_STATUS.CANCELLED &&
+        PAID_PAYMENT_STATUSES.includes(getPaymentStatus(res))
       )
     })
   } else if (activeTab === 'overdue') {
@@ -294,28 +327,12 @@ export const filterReservations = (reservations, filters) => {
     filtered = filtered.filter((res) => {
       const resDate = parseLocalDate(res.date)
       resDate.setHours(0, 0, 0, 0)
-      const paymentStatus = res.paymentStatus || res.payment_status
-      const reservationStatus = res.status || 'pending'
-      // Excluir canceladas de los vencidos
-      return (
-        reservationStatus !== 'cancelled' &&
-        resDate < today &&
-        paymentStatus !== 'fully_paid' &&
-        paymentStatus !== 'paid' &&
-        paymentStatus !== 'no_show'
-      )
+      return resDate < today && !isPaymentSettled(res)
     })
   } else if (activeTab === 'no_show') {
-    filtered = filtered.filter((res) => {
-      const paymentStatus = res.paymentStatus || res.payment_status
-      return paymentStatus === 'no_show'
-    })
+    filtered = filtered.filter((res) => getPaymentStatus(res) === PAYMENT_STATUS.NO_SHOW)
   } else if (activeTab === 'cancelled') {
-    // Nueva pestaña: solo reservas canceladas
-    filtered = filtered.filter((res) => {
-      const reservationStatus = res.status || 'pending'
-      return reservationStatus === 'cancelled'
-    })
+    filtered = filtered.filter((res) => getReservationStatus(res) === RESERVATION_STATUS.CANCELLED)
   }
 
   // Filtrar por búsqueda

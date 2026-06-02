@@ -33,6 +33,16 @@ export const RESERVATION_STATUS_COLORS = {
 // Array de valores válidos
 export const VALID_RESERVATION_STATUS = Object.values(RESERVATION_STATUS)
 
+// Estados de reserva TERMINALES: el ciclo de la reserva ya cerró, por lo que no
+// pueden tener un pago "pendiente por registrar". Una reserva en cualquiera de
+// estos estados nunca debe listarse como pendiente ni ofrecer "Registrar Pago".
+// Fuente única para los filtros del módulo de pagos.
+export const TERMINAL_RESERVATION_STATUSES = [
+  RESERVATION_STATUS.COMPLETED,
+  RESERVATION_STATUS.CANCELLED,
+  RESERVATION_STATUS.NO_SHOW,
+]
+
 // Helper functions
 export const isPending = (status) => status === RESERVATION_STATUS.PENDING
 export const isConfirmed = (status) => status === RESERVATION_STATUS.CONFIRMED

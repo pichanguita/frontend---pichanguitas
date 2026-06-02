@@ -12,7 +12,15 @@ export const PAYMENT_STATUS = {
   PARTIALLY_PAID: 'partially_paid', // Usado en AdminPanel
   VERIFIED: 'verified',
   REJECTED: 'rejected',
+  // El backend marca payment_status='no_show' al registrar una inasistencia
+  // (ver markAsNoShow). Es un valor real de la columna; se centraliza aquí
+  // para que el módulo de pagos no lo compare con un literal hardcodeado.
+  NO_SHOW: 'no_show',
 }
+
+// Estados de pago que representan un cobro ya cerrado (pago total confirmado).
+// 'paid' es sinónimo legado de 'fully_paid'; ambos cuentan como pagado.
+export const PAID_PAYMENT_STATUSES = [PAYMENT_STATUS.FULLY_PAID, PAYMENT_STATUS.PAID]
 
 export const PAYMENT_METHODS = {
   YAPE: 'yape',
@@ -36,6 +44,7 @@ export const PAYMENT_STATUS_LABELS = {
   [PAYMENT_STATUS.PARTIALLY_PAID]: 'Parcial',
   [PAYMENT_STATUS.VERIFIED]: 'Verificado',
   [PAYMENT_STATUS.REJECTED]: 'Rechazado',
+  [PAYMENT_STATUS.NO_SHOW]: 'No se Presentó',
 }
 
 export const PAYMENT_METHOD_LABELS = {
@@ -54,6 +63,7 @@ export const PAYMENT_STATUS_COLORS = {
   [PAYMENT_STATUS.PARTIAL]: 'orange',
   [PAYMENT_STATUS.VERIFIED]: 'blue',
   [PAYMENT_STATUS.REJECTED]: 'red',
+  [PAYMENT_STATUS.NO_SHOW]: 'orange',
 }
 
 // Arrays de valores válidos

@@ -23,6 +23,7 @@ import {
   uploadPaymentQRImage,
   AVAILABLE_PAYMENT_METHODS,
 } from '../services/fieldPaymentMethods/fieldPaymentMethodsService'
+import { onlyApprovedFields } from '../utils/fields/adminFields'
 import { API_CONFIG } from '../config/api.config'
 
 const FieldPaymentMethodsConfig = () => {
@@ -40,10 +41,11 @@ const FieldPaymentMethodsConfig = () => {
   // Verificar si es super admin
   const isSuperAdmin = user?.role === 'administrator' || user?.adminType === 'super'
 
-  // Filtrar canchas: Super Admin ve todas, admin regular solo las suyas
-  const adminFields = isSuperAdmin
-    ? fields.filter((f) => f.approvalStatus === 'approved' || f.status === 'available')
-    : fields.filter((f) => f.adminId === user?.id && f.status === 'available')
+  // Filtrar canchas: Super Admin ve todas las aprobadas; el admin regular solo
+  // las suyas aprobadas. Solo se configuran métodos de pago de canchas aprobadas.
+  const adminFields = onlyApprovedFields(
+    isSuperAdmin ? fields : fields.filter((f) => f.adminId === user?.id)
+  )
 
   // Cargar canchas si no están cargadas
   useEffect(() => {

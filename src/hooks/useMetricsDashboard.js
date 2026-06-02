@@ -3,6 +3,7 @@ import useBookingStore from '../store/bookingStore'
 import useFieldStore from '../store/modules/fieldStore'
 import useAuthStore from '../store/authStore'
 import { API_CONFIG } from '../config/api.config'
+import { onlyApprovedFields } from '../utils/fields/adminFields'
 import * as XLSX from 'xlsx'
 
 /**
@@ -36,12 +37,14 @@ export const useMetricsDashboard = () => {
   })
   const [isLoading, setIsLoading] = useState(true)
 
-  // Filter fields based on user permissions - MEMOIZADO para evitar recálculos infinitos
+  // Filter fields based on user permissions - MEMOIZADO para evitar recálculos infinitos.
+  // Las métricas (ocupación, ingresos) solo aplican a canchas APROBADAS y operativas;
+  // las pendientes/rechazadas no generan actividad y distorsionarían los cálculos.
   const visibleFields = useMemo(() => {
     if (!user || !fields) return []
 
     if (user.role === 'super_admin' || (user.role === 'admin' && user.adminType === 'general')) {
-      return fields
+      return onlyApprovedFields(fields)
     }
 
     // Soportar 'field', 'field_owner' y 'field_admin' como tipos de admin de cancha
@@ -50,13 +53,15 @@ export const useMetricsDashboard = () => {
 
       // Filtrar por: campos asignados via user_managed_fields O campos donde el user es admin_id
       const userId = Number(user.id)
-      return fields.filter((field) => {
-        const fieldId = Number(field.id)
-        const adminId = Number(field.adminId || field.admin_id)
-        const inManaged = managedFieldIds.map(Number).includes(fieldId)
-        const isAdmin = adminId === userId
-        return inManaged || isAdmin
-      })
+      return onlyApprovedFields(
+        fields.filter((field) => {
+          const fieldId = Number(field.id)
+          const adminId = Number(field.adminId || field.admin_id)
+          const inManaged = managedFieldIds.map(Number).includes(fieldId)
+          const isAdmin = adminId === userId
+          return inManaged || isAdmin
+        })
+      )
     }
 
     return []

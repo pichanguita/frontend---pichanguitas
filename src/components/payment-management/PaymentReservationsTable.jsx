@@ -13,8 +13,13 @@ import {
   Globe,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { getStatusColor } from '../../utils/payment-management/paymentManagementHelpers'
+import {
+  getStatusColor,
+  isPaymentSettled,
+} from '../../utils/payment-management/paymentManagementHelpers'
 import { parseLocalDate, formatDate } from '../../utils/dateFormatters'
+import { RESERVATION_STATUS } from '../../constants/reservationStatus'
+import { PAYMENT_STATUS, PAID_PAYMENT_STATUSES } from '../../constants/paymentStatus'
 
 /**
  * Componente de tabla de reservas con pagos
@@ -70,16 +75,17 @@ const PaymentReservationsTable = ({
               const resDate = parseLocalDate(reservation.date)
               const isToday = resDate.toDateString() === new Date().toDateString()
 
-              // Normalizar payment_status: BD usa 'paid', 'partial', 'pending'
               const paymentStatus = reservation.paymentStatus || reservation.payment_status
-              // Normalizar status de reserva: 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'
-              const reservationStatus = reservation.status || 'pending'
-              const isCancelled = reservationStatus === 'cancelled'
-              const isOverdue =
-                !isCancelled &&
-                resDate < new Date() &&
-                paymentStatus !== 'fully_paid' &&
-                paymentStatus !== 'paid'
+              const reservationStatus = reservation.status || RESERVATION_STATUS.PENDING
+              const isCancelled = reservationStatus === RESERVATION_STATUS.CANCELLED
+              const isPaidStatus = PAID_PAYMENT_STATUSES.includes(paymentStatus)
+              const isNoShow =
+                paymentStatus === PAYMENT_STATUS.NO_SHOW ||
+                reservationStatus === RESERVATION_STATUS.NO_SHOW
+              // Cobro cerrado (pagado, no-show o reserva terminal): regla única
+              // compartida con el filtro de la lista.
+              const isSettled = isPaymentSettled(reservation)
+              const isOverdue = !isSettled && resDate < new Date()
 
               // Reserva pública hecha desde la landing: es un 'customer_booking'
               // cuyo cliente NO tiene cuenta de login (customer_user_id == null).
@@ -239,9 +245,9 @@ const PaymentReservationsTable = ({
                             <span className="text-xs text-secondary-500">Total:</span>
                             <span
                               className={`font-bold ${
-                                paymentStatus === 'fully_paid' || paymentStatus === 'paid'
+                                isPaidStatus
                                   ? 'text-green-600'
-                                  : paymentStatus === 'no_show'
+                                  : isNoShow
                                     ? 'text-orange-600'
                                     : 'text-secondary-900'
                               }`}
@@ -269,20 +275,18 @@ const PaymentReservationsTable = ({
                           )}
 
                           {/* Pendiente (si > 0 y no está completamente pagado) */}
-                          {amounts.pending > 0 &&
-                            paymentStatus !== 'fully_paid' &&
-                            paymentStatus !== 'paid' && (
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs text-amber-600">Pendiente:</span>
-                                <span className="text-sm text-amber-600 font-semibold">
-                                  S/{' '}
-                                  {amounts.pending.toLocaleString('es-PE', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </span>
-                              </div>
-                            )}
+                          {amounts.pending > 0 && !isPaidStatus && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-amber-600">Pendiente:</span>
+                              <span className="text-sm text-amber-600 font-semibold">
+                                S/{' '}
+                                {amounts.pending.toLocaleString('es-PE', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -295,9 +299,9 @@ const PaymentReservationsTable = ({
                     >
                       {isCancelled
                         ? 'Cancelada'
-                        : paymentStatus === 'fully_paid' || paymentStatus === 'paid'
+                        : isPaidStatus || reservationStatus === RESERVATION_STATUS.COMPLETED
                           ? 'Pagado'
-                          : paymentStatus === 'no_show'
+                          : isNoShow
                             ? 'No se Presentó'
                             : isOverdue
                               ? 'Por Confirmar'
@@ -313,12 +317,12 @@ const PaymentReservationsTable = ({
                           <XCircle className="w-5 h-5" />
                           <span className="text-sm">Cancelada</span>
                         </div>
-                      ) : paymentStatus === 'no_show' ? (
+                      ) : isNoShow ? (
                         <div className="flex items-center gap-2 text-orange-600">
                           <UserX className="w-5 h-5" />
                           <span className="text-sm">No se Presentó</span>
                         </div>
-                      ) : paymentStatus !== 'fully_paid' && paymentStatus !== 'paid' ? (
+                      ) : !isSettled ? (
                         (() => {
                           const paymentCheck = canRegisterPayment(reservation)
                           return (

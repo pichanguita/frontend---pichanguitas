@@ -12,6 +12,7 @@ const RuleFormModal = ({
   selectedFields,
   selectedSports,
   userFields,
+  availableSports = [],
   isSuperAdmin,
   fieldsWithRules = [],
   ruleConflicts = {},
@@ -294,21 +295,28 @@ const RuleFormModal = ({
                 Seleccionar deportes
               </label>
               <div className="border border-secondary-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-                {['Fútbol', 'Vóley', 'Básquet', 'Tenis', 'Fulbito'].map((sport) => (
-                  <label
-                    key={sport}
-                    className="flex items-center mb-2 hover:bg-gray-50 p-1 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      value={sport}
-                      checked={selectedSports.includes(sport)}
-                      onChange={() => handleSportToggle(sport)}
-                      className="w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-primary-500 mr-2"
-                    />
-                    <span className="text-sm text-secondary-700">{sport}</span>
-                  </label>
-                ))}
+                {availableSports.length > 0 ? (
+                  availableSports.map((sport) => (
+                    <label
+                      key={sport}
+                      className="flex items-center mb-2 hover:bg-gray-50 p-1 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        value={sport}
+                        checked={selectedSports.includes(sport)}
+                        onChange={() => handleSportToggle(sport)}
+                        className="w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-primary-500 mr-2"
+                      />
+                      <span className="text-sm text-secondary-700">{sport}</span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-secondary-500">
+                    No hay deportes configurados. El superadministrador debe crearlos en "Gestión de
+                    Deportes".
+                  </p>
+                )}
               </div>
               {selectedSports.length > 0 && (
                 <p className="text-xs text-secondary-600 mt-1">

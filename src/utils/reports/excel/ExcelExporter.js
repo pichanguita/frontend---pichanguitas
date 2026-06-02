@@ -6,6 +6,7 @@ import {
   getReservationTotalPrice,
   getReservationRevenue,
 } from '../calculators'
+import { PAYMENT_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '../../../constants/paymentStatus'
 
 /**
  * Clase para exportar datos a Excel
@@ -112,8 +113,8 @@ export class ExcelExporter {
         reservation.date,
         reservation.startTime || reservation.time || 'N/A',
         reservation.sportType || field?.sportType || 'N/A',
-        reservation.paymentStatus || 'N/A',
-        reservation.paymentMethod || 'N/A',
+        PAYMENT_STATUS_LABELS[reservation.paymentStatus] || reservation.paymentStatus || 'N/A',
+        PAYMENT_METHOD_LABELS[reservation.paymentMethod] || reservation.paymentMethod || 'N/A',
         totalPrice.toFixed(2),
         revenue.toFixed(2),
       ])

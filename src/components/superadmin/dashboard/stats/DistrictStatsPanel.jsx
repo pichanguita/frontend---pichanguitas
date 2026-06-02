@@ -20,7 +20,7 @@ const DistrictStatsPanel = ({ districtStats, selectedDistrict, onDistrictClick }
       <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
         Estadísticas por Distrito
       </h3>
-      <div className="space-y-2 sm:space-y-3">
+      <div className="space-y-2 sm:space-y-3 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-1 -mr-1">
         {districtStats.map((stat) => (
           <div
             key={stat.name}

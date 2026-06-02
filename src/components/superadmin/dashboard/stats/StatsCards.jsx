@@ -17,6 +17,55 @@ const formatCompactCurrency = (amount) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }
 
+const StatCard = ({ card, index }) => {
+  const Icon = card.icon
+  const isCurrency = card.variant === 'currency'
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04 }}
+      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-gray-500 mb-1 truncate" title={card.label}>
+            {card.label}
+          </p>
+          {isCurrency ? (
+            <p
+              className={`text-lg sm:text-xl font-bold leading-tight tabular-nums break-words ${card.valueClass}`}
+            >
+              S/ {formatCompactCurrency(card.value)}
+            </p>
+          ) : (
+            <p className={`text-2xl font-bold leading-tight tabular-nums ${card.valueClass}`}>
+              {card.value}
+            </p>
+          )}
+        </div>
+        <div className={`${card.iconWrapperClass} p-2.5 rounded-lg flex-shrink-0`}>
+          <Icon className={`w-5 h-5 ${card.iconClass}`} />
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+const StatsSection = ({ title, cards, gridClass, startIndex, className = '' }) => (
+  <div className={className}>
+    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2 px-0.5">
+      {title}
+    </h3>
+    <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
+      {cards.map((card, i) => (
+        <StatCard key={card.key} card={card} index={startIndex + i} />
+      ))}
+    </div>
+  </div>
+)
+
 const StatsCards = ({
   totalFields = 0,
   activeFields = 0,
@@ -31,7 +80,7 @@ const StatsCards = ({
   const safeRevenue = typeof totalRevenue === 'number' ? totalRevenue : 0
   const safePending = typeof totalPending === 'number' ? totalPending : 0
 
-  const cards = [
+  const fieldCards = [
     {
       key: 'total',
       label: 'Total Canchas',
@@ -72,6 +121,9 @@ const StatsCards = ({
       iconClass: 'text-red-600',
       variant: 'integer',
     },
+  ]
+
+  const reservationCards = [
     {
       key: 'totalReservations',
       label: 'Reservas Totales',
@@ -92,6 +144,9 @@ const StatsCards = ({
       iconClass: 'text-purple-600',
       variant: 'integer',
     },
+  ]
+
+  const financeCards = [
     {
       key: 'revenue',
       label: 'Ingresos Totales',
@@ -112,6 +167,9 @@ const StatsCards = ({
       iconClass: 'text-red-600',
       variant: 'currency',
     },
+  ]
+
+  const teamCards = [
     {
       key: 'admins',
       label: 'Administradores',
@@ -125,38 +183,37 @@ const StatsCards = ({
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-9 gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
-      {cards.map((card, index) => {
-        const Icon = card.icon
-        const isCurrency = card.variant === 'currency'
-        return (
-          <motion.div
-            key={card.key}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-gray-500 mb-0.5">{card.label}</p>
-                {isCurrency ? (
-                  <p
-                    className={`text-sm sm:text-base font-bold leading-tight break-all ${card.valueClass}`}
-                  >
-                    S/{formatCompactCurrency(card.value)}
-                  </p>
-                ) : (
-                  <p className={`text-lg sm:text-xl font-bold ${card.valueClass}`}>{card.value}</p>
-                )}
-              </div>
-              <div className={`${card.iconWrapperClass} p-2 rounded-lg flex-shrink-0`}>
-                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${card.iconClass}`} />
-              </div>
-            </div>
-          </motion.div>
-        )
-      })}
+    <div className="space-y-5 mb-4 sm:mb-6 md:mb-8">
+      <StatsSection
+        title="Canchas"
+        cards={fieldCards}
+        gridClass="grid-cols-2 lg:grid-cols-4"
+        startIndex={0}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
+        <StatsSection
+          title="Reservas"
+          cards={reservationCards}
+          gridClass="grid-cols-2"
+          startIndex={4}
+          className="xl:col-span-2"
+        />
+        <StatsSection
+          title="Finanzas"
+          cards={financeCards}
+          gridClass="grid-cols-2"
+          startIndex={6}
+          className="xl:col-span-2"
+        />
+        <StatsSection
+          title="Equipo"
+          cards={teamCards}
+          gridClass="grid-cols-1"
+          startIndex={8}
+          className="md:col-span-2 xl:col-span-1"
+        />
+      </div>
     </div>
   )
 }

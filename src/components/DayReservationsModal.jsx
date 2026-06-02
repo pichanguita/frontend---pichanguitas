@@ -373,7 +373,7 @@ const DayReservationsModal = ({
         await Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'No se pudo cancelar la reserva. Intenta nuevamente.',
+          text: error?.message || 'No se pudo cancelar la reserva. Intenta nuevamente.',
           confirmButtonColor: '#22c55e',
         })
       } finally {

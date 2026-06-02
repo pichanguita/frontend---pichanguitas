@@ -1,9 +1,25 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { MessageCircle, Phone, Save, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import useAuthStore from '../store/authStore'
 import useFieldStore from '../store/modules/fieldStore'
 import { updateFieldAPI } from '../services/field/fieldService'
+import { onlyApprovedFields } from '../utils/fields/adminFields'
 import Swal from 'sweetalert2'
+
+/**
+ * Canchas que pertenecen al ámbito del admin actual (sin filtrar por aprobación):
+ * super_admin ve todas; el admin general ve las suyas; el admin de cancha ve las
+ * que tiene asignadas.
+ */
+const getOwnedFields = (fields, user) => {
+  if (!user || !fields) return []
+  if (user.role === 'super_admin') return fields
+  if (user.adminType === 'general') return fields.filter((f) => f.adminId === user.id)
+  if (user.adminType === 'field' && user.managedFields) {
+    return fields.filter((f) => user.managedFields.includes(f.id))
+  }
+  return fields.filter((f) => f.adminId === user.id)
+}
 
 const WhatsAppConfigModule = () => {
   const { user, token } = useAuthStore()
@@ -13,24 +29,11 @@ const WhatsAppConfigModule = () => {
   const [savingFields, setSavingFields] = useState({})
   const [isLoading, setIsLoading] = useState(true)
 
-  // Filtrar canchas del admin actual
-  const getAdminFields = () => {
-    if (!user || !fields) return []
-
-    if (user.role === 'super_admin') {
-      return fields
-    }
-
-    if (user.adminType === 'general') {
-      return fields.filter((f) => f.adminId === user.id)
-    }
-
-    if (user.adminType === 'field' && user.managedFields) {
-      return fields.filter((f) => user.managedFields.includes(f.id))
-    }
-
-    return fields.filter((f) => f.adminId === user.id)
-  }
+  // Solo canchas aprobadas del admin actual (fuente única para toda la vista).
+  const adminFields = useMemo(
+    () => onlyApprovedFields(getOwnedFields(fields, user)),
+    [fields, user]
+  )
 
   // Cargar canchas al montar
   useEffect(() => {
@@ -55,21 +58,6 @@ const WhatsAppConfigModule = () => {
 
   // Inicializar estados de los telefonos cuando cargan los campos
   useEffect(() => {
-    if (!user || !fields) return
-
-    const adminFields = (() => {
-      if (user.role === 'super_admin') {
-        return fields
-      }
-      if (user.adminType === 'general') {
-        return fields.filter((f) => f.adminId === user.id)
-      }
-      if (user.adminType === 'field' && user.managedFields) {
-        return fields.filter((f) => user.managedFields.includes(f.id))
-      }
-      return fields.filter((f) => f.adminId === user.id)
-    })()
-
     const initialPhones = {}
 
     adminFields.forEach((field) => {
@@ -82,7 +70,7 @@ const WhatsAppConfigModule = () => {
     })
 
     setFieldPhones(initialPhones)
-  }, [fields, user])
+  }, [adminFields])
 
   const handlePhoneChange = (fieldId, value) => {
     // Solo permitir numeros y maximo 9 digitos
@@ -135,8 +123,6 @@ const WhatsAppConfigModule = () => {
       setSavingFields((prev) => ({ ...prev, [fieldId]: false }))
     }
   }
-
-  const adminFields = getAdminFields()
 
   // Loading state
   if (isLoading) {

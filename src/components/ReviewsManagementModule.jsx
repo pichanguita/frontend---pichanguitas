@@ -93,15 +93,15 @@ const ReviewsManagementModule = () => {
     return reviews.filter((review) => userFieldIds.includes(review.fieldId))
   }, [reviews, userFieldIds, isSuperAdmin, selectedAdmin])
 
-  // Filtrar reviews
+  // Filtrar reviews.
+  // Parte de `scopedReviews` (no de `reviews`) para que el alcance por admin
+  // se respete en AMBOS roles: el superadmin con un admin seleccionado solo ve
+  // las reseñas de las canchas de ese admin, igual que las "Estadísticas
+  // Generales". Sobre ese subconjunto se aplican los filtros de cancha y
+  // visibilidad.
   const filteredReviews = useMemo(() => {
-    return reviews
+    return scopedReviews
       .filter((review) => {
-        // Filtro por canchas del administrador (si no es superadmin)
-        if (!isSuperAdmin && !userFieldIds.includes(review.fieldId)) {
-          return false
-        }
-
         // Filtro por cancha seleccionada.
         // `selectedField` viene como string desde el <select>; `review.fieldId`
         // llega como number (FK integer transformado en reviewsService).
@@ -122,7 +122,7 @@ const ReviewsManagementModule = () => {
         return true
       })
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  }, [reviews, selectedField, filterVisibility, isSuperAdmin, userFieldIds])
+  }, [scopedReviews, selectedField, filterVisibility])
 
   // Estadísticas (solo de las canchas del administrador)
   const stats = useMemo(() => {

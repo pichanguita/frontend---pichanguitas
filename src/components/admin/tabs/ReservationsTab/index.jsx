@@ -10,6 +10,7 @@ import { MonthlyStats } from './MonthlyStats'
 import { ReservationsTable } from './ReservationsTable'
 import CalendarView from '../../../CalendarView'
 import { DEFAULT_VALUES, BUTTON_TEXTS } from '../../../../constants'
+import { onlyApprovedFields } from '../../../../utils/fields/adminFields'
 
 /**
  * Tab de Reservas
@@ -31,14 +32,17 @@ export const ReservationsTab = ({ onOpenBookingModal, onDateClick }) => {
   const { fields } = useFieldStore() // ✅ USAR fieldStore en vez de bookingStore
   const { user } = useAuthStore()
 
-  // Determinar qué canchas puede ver el usuario según permisos (base)
+  // Determinar qué canchas puede ver el usuario según permisos (base).
+  // Solo canchas APROBADAS: las pendientes/rechazadas no tienen operación.
   const baseFieldIds = useMemo(() => {
+    const approved = onlyApprovedFields(fields)
     if (user?.role === 'admin' && user?.adminType === 'field') {
       // Admin de cancha ve solo sus canchas
-      return user?.managedFields || []
+      const managed = user?.managedFields || []
+      return approved.filter((f) => managed.includes(f.id)).map((f) => f.id)
     }
     // Super admin o admin general ven todas
-    return fields.map((f) => f.id)
+    return approved.map((f) => f.id)
   }, [user?.role, user?.adminType, user?.managedFields, fields])
 
   // Aplicar TODOS los filtros (cancha específica + geográficos) para obtener los IDs finales
@@ -70,14 +74,16 @@ export const ReservationsTab = ({ onOpenBookingModal, onDateClick }) => {
     return filteredFields.map((f) => f.id)
   }, [fields, baseFieldIds, selectedFieldFilter, filterDepartment, filterProvince, filterDistrict])
 
-  // Filtrar canchas visibles (memoizado para evitar re-renders)
+  // Filtrar canchas visibles (memoizado para evitar re-renders).
+  // Solo canchas APROBADAS para el selector de cancha del filtro.
   const visibleFields = useMemo(() => {
+    const approved = onlyApprovedFields(fields)
     if (user?.role === 'super_admin' || (user?.role === 'admin' && user?.adminType === 'general')) {
-      return fields
+      return approved
     }
     if (user?.role === 'admin' && user?.adminType === 'field') {
       const managedFieldIds = user?.managedFields || []
-      return fields.filter((field) => managedFieldIds.includes(field.id))
+      return approved.filter((field) => managedFieldIds.includes(field.id))
     }
     return []
   }, [user?.role, user?.adminType, user?.managedFields, fields])

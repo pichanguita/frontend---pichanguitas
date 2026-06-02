@@ -10,13 +10,14 @@ import {
   fetchFieldsWithActiveRules,
   checkRuleConflicts,
 } from '../services/promotions'
+import { onlyApprovedFields } from '../utils/fields/adminFields'
 import Swal from 'sweetalert2'
 
 /**
  * Hook personalizado para manejar la lógica del módulo de promociones
  */
 export const usePromotions = () => {
-  const { fields, loadFields } = useFieldStore()
+  const { fields, loadFields, sportTypes, loadSportTypes } = useFieldStore()
   const { user, token } = useAuthStore()
   const { loadCustomers, customers } = useCustomerStore()
 
@@ -41,25 +42,35 @@ export const usePromotions = () => {
   // Verificar si es superadmin
   const isSuperAdmin = user?.role === 'super_admin'
 
-  // Obtener las canchas del administrador
+  // Obtener las canchas del administrador. Las promociones solo se asignan a
+  // canchas APROBADAS: una pendiente o rechazada no opera y no debe ofrecerse.
   const userFields = useMemo(() => {
     if (!user || !fields) return []
 
     // Super admin y admin general ven todas las canchas
     if (user.role === 'super_admin' || (user.role === 'admin' && user.adminType === 'general')) {
-      return fields
+      return onlyApprovedFields(fields)
     }
 
     // Admin de cancha específica solo ve sus canchas asignadas
     if (user.role === 'admin' && (user.adminType === 'field' || user.adminType === 'field_owner')) {
       const managedFieldIds = user.managedFields || []
-      return fields.filter(
-        (field) => managedFieldIds.includes(field.id) || field.adminId === user.id
+      return onlyApprovedFields(
+        fields.filter((field) => managedFieldIds.includes(field.id) || field.adminId === user.id)
       )
     }
 
     return []
   }, [fields, user])
+
+  // Deportes disponibles para "Deportes específicos": son los que el SUPERADMIN
+  // configura en "Gestión de Deportes" (sport_types). NO se hardcodean. El backend
+  // ya devuelve solo los activos y ordenados por display_order; el contrato de la
+  // regla usa el NOMBRE del deporte (specific_sports). Ver [[project-sport-order-single-source]].
+  const availableSports = useMemo(
+    () => (sportTypes || []).map((sport) => sport.name).filter(Boolean),
+    [sportTypes]
+  )
 
   // Cargar promociones desde el backend
   const loadPromotionRules = async () => {
@@ -115,6 +126,7 @@ export const usePromotions = () => {
     loadPromotionRules()
     loadCustomers()
     loadFields() // Cargar canchas para el selector de "Canchas específicas"
+    loadSportTypes() // Cargar deportes (del SA) para el selector de "Deportes específicos"
   }, [])
 
   // Calcular horas gratis basado en reglas de promoción
@@ -190,7 +202,14 @@ export const usePromotions = () => {
       // Recargar promociones
       await loadPromotionRules()
       setShowNewRuleModal(false)
+      // Resetear el formulario tras guardar para no arrastrar la selección a la
+      // siguiente apertura (si no, "Nueva Regla" reabría con las canchas/deporte
+      // de la regla recién creada ya marcados y los reenviaba, provocando un
+      // falso conflicto "la cancha ya tiene una regla activa").
       setEditingRule(null)
+      setAppliesTo('all')
+      setSelectedFields([])
+      setSelectedSports([])
     } catch (error) {
       console.error('Error guardando promoción:', error)
       Swal.fire({
@@ -263,6 +282,13 @@ export const usePromotions = () => {
   }
 
   const handleOpenNewRuleModal = async () => {
+    // Partir SIEMPRE de un formulario limpio: "Nueva Regla" no debe heredar la
+    // selección de una apertura/edición anterior (causaba enviar canchas que el
+    // usuario no marcó conscientemente → conflicto "la cancha ya tiene regla").
+    setEditingRule(null)
+    setAppliesTo('all')
+    setSelectedFields([])
+    setSelectedSports([])
     // Cargar canchas con reglas activas (sin excluir ninguna)
     await loadFieldsWithRules(null)
     setShowNewRuleModal(true)
@@ -287,6 +313,7 @@ export const usePromotions = () => {
     selectedFields,
     selectedSports,
     userFields,
+    availableSports,
     isSuperAdmin,
     isLoading,
     fieldsWithRules,

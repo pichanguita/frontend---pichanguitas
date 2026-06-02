@@ -1,5 +1,6 @@
 import React from 'react'
 import { Search } from 'lucide-react'
+import { onlyApprovedFields } from '../../utils/fields/adminFields'
 
 /**
  * Componente de filtros, búsqueda y tabs para gestión de pagos
@@ -40,7 +41,7 @@ const PaymentFilters = ({
           className="px-4 py-2 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
         >
           <option value="all">Todas las canchas</option>
-          {fields.map((field) => (
+          {onlyApprovedFields(fields).map((field) => (
             <option key={field.id} value={field.id}>
               {field.name}
             </option>

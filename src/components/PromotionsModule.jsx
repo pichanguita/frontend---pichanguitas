@@ -19,6 +19,7 @@ const PromotionsModule = () => {
     selectedFields,
     selectedSports,
     userFields,
+    availableSports,
     isSuperAdmin,
     fieldsWithRules,
     ruleConflicts,
@@ -71,6 +72,7 @@ const PromotionsModule = () => {
         selectedFields={selectedFields}
         selectedSports={selectedSports}
         userFields={userFields}
+        availableSports={availableSports}
         isSuperAdmin={isSuperAdmin}
         fieldsWithRules={fieldsWithRules}
         ruleConflicts={ruleConflicts}

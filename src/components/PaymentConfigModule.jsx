@@ -19,6 +19,7 @@ import {
   fetchPaymentConfigs,
 } from '../services/paymentConfigs/paymentConfigsService'
 import { API_CONFIG } from '../config/api.config'
+import { isApprovalApproved } from '../constants/fieldStatus'
 import Swal from 'sweetalert2'
 
 const PaymentConfigModule = () => {
@@ -130,7 +131,7 @@ const PaymentConfigModule = () => {
           return false
         }
         // Solo se cobra mensualidad a canchas aprobadas
-        if (field.approvalStatus && field.approvalStatus !== 'approved') {
+        if (!isApprovalApproved(field.approvalStatus ?? field.approval_status)) {
           return false
         }
         return true
@@ -164,7 +165,7 @@ const PaymentConfigModule = () => {
         if (user && field.adminId === user.id) {
           return false
         }
-        if (field.approvalStatus && field.approvalStatus !== 'approved') {
+        if (!isApprovalApproved(field.approvalStatus ?? field.approval_status)) {
           return false
         }
         return true

@@ -176,6 +176,11 @@ const usePaymentFlow = (onComplete) => {
       const isFreeReservationFinal = pricing.totalAmount === 0 && pricing.freeHoursUsed > 0
       const paymentStatus = isFreeReservationFinal ? 'fully_paid' : 'pending'
 
+      // Si la cancha exige confirmación manual del administrador, la reserva no
+      // queda confirmada automáticamente: nace 'pending' y el admin debe
+      // aprobarla/rechazarla en "Gestión de Reservas".
+      const requiresManualConfirmation = selectedField?.requiresManualConfirmation === true
+
       // Resolver el deporte a persistir: en canchas multi-deporte viene del
       // selector del paso 3; en canchas mono-deporte cae al único disponible.
       const fieldSports = Array.isArray(selectedField?.sportTypes) ? selectedField.sportTypes : []
@@ -196,7 +201,11 @@ const usePaymentFlow = (onComplete) => {
         payment_method: isFreeReservationFinal ? 'free_hours' : paymentMethod,
         payment_status: paymentStatus,
         payment_voucher_url: null,
-        status: 'confirmed', // ✅ TODAS las reservas se confirman automáticamente
+        // El backend DERIVA el estado real desde la configuración de la cancha
+        // (requires_manual_confirmation). Enviamos un valor coherente: si la
+        // cancha exige confirmación manual, la reserva nace 'pending' (queda a la
+        // espera de aprobación del admin); si no, se autoconfirma.
+        status: requiresManualConfirmation ? 'pending' : 'confirmed',
         type: 'customer_booking',
         hours: hours,
         phone_number: phoneToUse,
@@ -252,13 +261,17 @@ const usePaymentFlow = (onComplete) => {
 
       // Mostrar confirmación
       MySwal.fire({
-        icon: 'success',
-        title: '¡Reserva Confirmada!',
+        icon: requiresManualConfirmation ? 'info' : 'success',
+        title: requiresManualConfirmation ? '¡Reserva Registrada!' : '¡Reserva Confirmada!',
         html: `
           <div class="text-center space-y-4">
-            <div class="bg-green-50 p-4 rounded-lg">
-              <h4 class="font-semibold text-green-800 mb-2">✅ Tu reserva está confirmada</h4>
-              <div class="space-y-2 text-sm text-green-700">
+            <div class="${requiresManualConfirmation ? 'bg-amber-50' : 'bg-green-50'} p-4 rounded-lg">
+              <h4 class="font-semibold ${requiresManualConfirmation ? 'text-amber-800' : 'text-green-800'} mb-2">${
+                requiresManualConfirmation
+                  ? '⏳ Tu reserva está pendiente de confirmación'
+                  : '✅ Tu reserva está confirmada'
+              }</h4>
+              <div class="space-y-2 text-sm ${requiresManualConfirmation ? 'text-amber-700' : 'text-green-700'}">
                 <p><strong>Cancha:</strong> ${selectedField?.name}</p>
                 <p><strong>Fecha:</strong> ${parseLocalDate(selectedDate).toLocaleDateString('es-PE')}</p>
                 <p><strong>Horarios:</strong> ${selectedTimeRanges.map((id) => timeRanges.find((tr) => tr.id === id)?.label).join(', ')}</p>
@@ -278,7 +291,11 @@ const usePaymentFlow = (onComplete) => {
             </div>
             <div class="bg-blue-50 p-4 rounded-lg">
               <p class="text-sm text-blue-700">
-                🎉 <strong>¡Perfecto!</strong> Tu cancha está reservada.
+                ${
+                  requiresManualConfirmation
+                    ? '📩 <strong>¡Listo!</strong> Tu solicitud fue enviada al administrador. Te confirmará la reserva a la brevedad.'
+                    : '🎉 <strong>¡Perfecto!</strong> Tu cancha está reservada.'
+                }
               </p>
             </div>
           </div>
