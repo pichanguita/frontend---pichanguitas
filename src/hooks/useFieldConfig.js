@@ -8,7 +8,7 @@ import {
 } from '../utils/field-config/fieldConfigHelpers'
 import { API_CONFIG, getToken } from '../config/api.config'
 import { fetchImagesByField, deleteFieldImageAPI } from '../services/fieldImages/fieldImagesService'
-import { fetchFieldConfig, updateFieldConfig } from '../services/fieldConfig'
+import { fetchFieldConfig, updateFieldConfig, validateFieldConfig } from '../services/fieldConfig'
 import useFieldStore from '../store/modules/fieldStore'
 
 const useFieldConfig = (field, isOpen, onClose, onSave) => {
@@ -499,6 +499,26 @@ const useFieldConfig = (field, isOpen, onClose, onSave) => {
   }
 
   const handleSave = async () => {
+    // Validar la configuración antes de tocar el backend. Una fila de
+    // mantenimiento (o precio especial) incompleta abortaría la transacción
+    // completa en el servidor — ROLLBACK — impidiendo guardar incluso General,
+    // Cancelaciones, Horarios o Precios. Bloqueamos aquí con mensajes claros.
+    const validation = validateFieldConfig(config)
+    if (!validation.valid) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Revisa la configuración',
+        html: `<ul style="text-align:left;margin:0;padding-left:1.2rem">${validation.errors
+          .map((err) => `<li>${err}</li>`)
+          .join('')}</ul>`,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#22c55e',
+        showCloseButton: true,
+        allowEscapeKey: true,
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
       // Obtener token

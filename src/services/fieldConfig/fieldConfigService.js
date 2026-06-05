@@ -154,14 +154,24 @@ const transformMaintenanceToBackend = (maintenanceSchedules) => {
   // El default debe coincidir con el primer <option> del select de tipo en
   // MaintenanceTab ('scheduled'). Antes era 'general', valor que no existe en
   // las opciones, lo que causaba que el select cayera al primer item al recargar.
-  return maintenanceSchedules.map((maintenance) => ({
-    start_date: maintenance.startDate || maintenance.start_date,
-    end_date: maintenance.endDate || maintenance.end_date,
-    reason: maintenance.reason || maintenance.description || '',
-    maintenance_type:
-      maintenance.type || maintenance.maintenanceType || maintenance.maintenance_type || 'scheduled',
-    status: maintenance.status || 'scheduled',
-  }))
+  return (
+    maintenanceSchedules
+      .map((maintenance) => ({
+        start_date: maintenance.startDate || maintenance.start_date || null,
+        end_date: maintenance.endDate || maintenance.end_date || null,
+        reason: maintenance.reason || maintenance.description || '',
+        maintenance_type:
+          maintenance.type ||
+          maintenance.maintenanceType ||
+          maintenance.maintenance_type ||
+          'scheduled',
+      }))
+      // Descartar filas incompletas: la BD exige start_date y end_date NOT NULL.
+      // Una fila sin ambas fechas (agregada por error y dejada vacía) no debe
+      // viajar al backend, donde rompería la transacción de toda la config.
+      // Las filas a medias ya las bloquea validateFieldConfig antes de llegar aquí.
+      .filter((maintenance) => maintenance.start_date && maintenance.end_date)
+  )
 }
 
 /**
@@ -373,7 +383,6 @@ const transformMaintenanceToFrontend = (maintenanceSchedules) => {
       // un default 'general' no existía entre las opciones y provocaba que el
       // navegador cayera al primer <option> ("Programado") tras recargar.
       type: maintenance.maintenance_type || 'scheduled',
-      status: maintenance.status || 'scheduled',
     }
   })
 }
