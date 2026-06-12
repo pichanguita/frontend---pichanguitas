@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { MapPin, Clock, Activity, ChevronRight, Users, Star } from 'lucide-react'
+import StarRating from './common/StarRating'
 import { motion } from 'framer-motion'
 import useBookingStore from '../store/bookingStore'
 import useAuthStore from '../store/authStore'
@@ -216,28 +217,15 @@ const FieldsList = ({ onFieldSelect }) => {
                             <span className="text-sm">{field.address}</span>
                           </div>
 
-                          {/* Rating */}
-                          {field.rating > 0 && (
-                            <div className="flex items-center gap-1 mb-4">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < Math.floor(field.rating)
-                                      ? 'fill-yellow-400 text-yellow-400'
-                                      : i < field.rating
-                                        ? 'fill-yellow-200 text-yellow-400'
-                                        : 'text-gray-300'
-                                  }`}
-                                />
-                              ))}
-                              <span className="text-sm font-medium text-gray-700 ml-1">
-                                {field.rating.toFixed(1)}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                ({field.totalReviews || 0}{' '}
-                                {field.totalReviews === 1 ? 'reseña' : 'reseñas'})
-                              </span>
+                          {/* Rating (promedio derivado de reseñas visibles) */}
+                          {field.totalReviews > 0 && (
+                            <div className="mb-4">
+                              <StarRating
+                                rating={field.rating}
+                                count={field.totalReviews}
+                                showValue
+                                size={4}
+                              />
                             </div>
                           )}
 

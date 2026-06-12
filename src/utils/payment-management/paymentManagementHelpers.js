@@ -198,6 +198,18 @@ export const calculatePaymentStats = (existingReservations, _fields) => {
     const paymentStatus = getPaymentStatus(reservation)
 
     // ============================================
+    // RESERVAS RECHAZADAS - anuladas por el admin desde "Gestión de Reservas".
+    // La reserva nunca se concretó: el adelanto (si lo hubo) se reembolsa al
+    // cliente, por lo que NO es ingreso. Se excluye por completo del tablero de
+    // pagos: no suma a Total Cobrado, ni a Total Pendiente, ni a ningún conteo
+    // (pendientes/por confirmar). Coherente con isPaymentSettled, que ya la trata
+    // como pago cerrado y la saca de los tabs Pendientes/Por Confirmar.
+    // ============================================
+    if (reservationStatus === RESERVATION_STATUS.REJECTED) {
+      return
+    }
+
+    // ============================================
     // RESERVAS CANCELADAS - No tienen pagos pendientes.
     // El backend mantiene reservations.advance_kept como el monto NETO
     // retenido por la empresa: ya descontó el refund procesado, o se

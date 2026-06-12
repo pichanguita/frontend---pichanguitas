@@ -29,7 +29,6 @@ const AdminPanel = () => {
     isAuthenticated = false,
     user = null,
     logout = () => {},
-    checkSession = () => true,
     hasPermission = () => false,
     addActivityLog = () => {},
     createAdmin = () => {},
@@ -111,7 +110,6 @@ const AdminPanel = () => {
     closeModal,
     addActivityLog,
     logout,
-    checkSession,
   })
 
   // Check user anniversaries (super admin only)

@@ -12,8 +12,10 @@ import { parseLocalDate } from '../dateFormatters'
  *     del cierre del pago, sin tener que esperar al día siguiente.
  *   - Fue marcada como 'no_show' por el admin/SA: el cliente no se presentó,
  *     es un estado terminal y debe salir de "Activas" inmediatamente.
+ *   - Fue rechazada por el admin (`status === 'rejected'`): estado terminal, la
+ *     reserva nunca se concretó y debe mostrarse en el historial, no en activas.
  */
-const PAST_STATUSES = ['cancelled', 'completed', 'no_show']
+const PAST_STATUSES = ['cancelled', 'completed', 'no_show', 'rejected']
 
 export const separateReservations = (myReservations) => {
   const today = new Date()
@@ -41,7 +43,8 @@ export const separateReservations = (myReservations) => {
 export const calculateFieldRentalCount = (myReservations) => {
   const counts = {}
   myReservations.forEach((res) => {
-    if (res.status !== 'cancelled') {
+    // Cancelada y rechazada no cuentan como alquiler: el servicio nunca se brindó.
+    if (res.status !== 'cancelled' && res.status !== 'rejected') {
       counts[res.fieldId] = (counts[res.fieldId] || 0) + 1
     }
   })
@@ -50,10 +53,10 @@ export const calculateFieldRentalCount = (myReservations) => {
 
 /**
  * Estados que excluyen una reserva del cálculo del saldo pendiente.
- * - cancelled / no_show: el servicio no se brindó, no hay saldo cobrable.
+ * - cancelled / no_show / rejected: el servicio no se brindó, no hay saldo cobrable.
  * - paymentStatus refunded: el dinero ya fue devuelto al cliente.
  */
-const NON_BILLABLE_RESERVATION_STATUSES = new Set(['cancelled', 'no_show'])
+const NON_BILLABLE_RESERVATION_STATUSES = new Set(['cancelled', 'no_show', 'rejected'])
 const NON_BILLABLE_PAYMENT_STATUSES = new Set(['refunded'])
 
 /**

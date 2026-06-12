@@ -342,17 +342,6 @@ const useFieldStore = create((set, get) => ({
   },
 
   /**
-   * Actualizar rating y reseñas de una cancha
-   * @param {string} fieldId - ID de la cancha
-   * @param {number} rating - Nuevo rating
-   * @param {number} totalReviews - Total de reseñas
-   * @returns {boolean} True si se actualizó
-   */
-  updateFieldRating: (fieldId, rating, totalReviews) => {
-    return get().updateField(fieldId, { rating, totalReviews })
-  },
-
-  /**
    * Filtrar canchas disponibles por criterios
    * @param {Object} filters - Filtros { district, sportType, date }
    * @returns {Array} Canchas filtradas

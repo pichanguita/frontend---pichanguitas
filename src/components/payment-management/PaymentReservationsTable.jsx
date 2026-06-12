@@ -78,6 +78,7 @@ const PaymentReservationsTable = ({
               const paymentStatus = reservation.paymentStatus || reservation.payment_status
               const reservationStatus = reservation.status || RESERVATION_STATUS.PENDING
               const isCancelled = reservationStatus === RESERVATION_STATUS.CANCELLED
+              const isRejected = reservationStatus === RESERVATION_STATUS.REJECTED
               const isPaidStatus = PAID_PAYMENT_STATUSES.includes(paymentStatus)
               const isNoShow =
                 paymentStatus === PAYMENT_STATUS.NO_SHOW ||
@@ -109,7 +110,7 @@ const PaymentReservationsTable = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   className={`hover:bg-secondary-50 transition-colors ${
-                    isCancelled
+                    isCancelled || isRejected
                       ? 'bg-gray-50 opacity-75'
                       : isOverdue
                         ? 'bg-red-50'
@@ -294,20 +295,22 @@ const PaymentReservationsTable = ({
                   <td className="py-4 px-6">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        isCancelled ? 'text-gray-600 bg-gray-100' : statusColor
+                        isCancelled || isRejected ? 'text-gray-600 bg-gray-100' : statusColor
                       }`}
                     >
                       {isCancelled
                         ? 'Cancelada'
-                        : isPaidStatus || reservationStatus === RESERVATION_STATUS.COMPLETED
-                          ? 'Pagado'
-                          : isNoShow
-                            ? 'No se Presentó'
-                            : isOverdue
-                              ? 'Por Confirmar'
-                              : isToday
-                                ? 'Hoy'
-                                : 'Pendiente'}
+                        : isRejected
+                          ? 'Rechazada'
+                          : isPaidStatus || reservationStatus === RESERVATION_STATUS.COMPLETED
+                            ? 'Pagado'
+                            : isNoShow
+                              ? 'No se Presentó'
+                              : isOverdue
+                                ? 'Por Confirmar'
+                                : isToday
+                                  ? 'Hoy'
+                                  : 'Pendiente'}
                     </span>
                   </td>
                   {!readOnly && (
@@ -316,6 +319,11 @@ const PaymentReservationsTable = ({
                         <div className="flex items-center gap-2 text-gray-500">
                           <XCircle className="w-5 h-5" />
                           <span className="text-sm">Cancelada</span>
+                        </div>
+                      ) : isRejected ? (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <XCircle className="w-5 h-5" />
+                          <span className="text-sm">Rechazada</span>
                         </div>
                       ) : isNoShow ? (
                         <div className="flex items-center gap-2 text-orange-600">

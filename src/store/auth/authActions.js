@@ -1,36 +1,10 @@
 import { loginUser } from '@/services/auth'
 import { changePasswordAPI, updateMyProfileAPI } from '../../services/users/usersService'
 
-/**
- * Decodifica el payload de un JWT sin verificar firma. Lo usamos sólo para
- * leer el campo `exp` y detectar expiración en el cliente. La verificación
- * real la hace el backend en cada request.
- */
-const parseJwt = (token) => {
-  if (!token || typeof token !== 'string') return null
-  try {
-    const base64Payload = token.split('.')[1]
-    if (!base64Payload) return null
-    const padded = base64Payload.replace(/-/g, '+').replace(/_/g, '/')
-    return JSON.parse(atob(padded))
-  } catch {
-    return null
-  }
-}
-
-/**
- * Calcula el instante en ms en que expira el JWT.
- * Devuelve null si el token no se puede parsear o no trae `exp`.
- * Esta es la única fuente de verdad para la expiración de la sesión:
- * coincide siempre con lo que el backend rechazará.
- */
-const getTokenExpiryMs = (token) => {
-  const payload = parseJwt(token)
-  if (!payload || typeof payload.exp !== 'number') return null
-  return payload.exp * 1000
-}
-
-// Acciones de autenticacion y sesion
+// Acciones de autenticacion y sesion.
+// La expiración de sesión la vigilan useSessionWatcher (proactivo) y el
+// authInterceptor (reactivo), ambos a partir del JWT; el store sólo guarda
+// el token y los datos del usuario.
 export const createAuthActions = (set, get) => ({
   // Login
   login: async (credentials) => {
@@ -49,9 +23,6 @@ export const createAuthActions = (set, get) => ({
       if (!user) {
         throw new Error('Error en la respuesta del servidor')
       }
-
-      // La expiración de sesión se deriva del JWT emitido por el backend.
-      const sessionExpiry = getTokenExpiryMs(token)
 
       // Actualizar el estado con los datos del usuario autenticado
       set({
@@ -76,7 +47,6 @@ export const createAuthActions = (set, get) => ({
         loginAttempts: 0,
         lastLoginAttempt: null,
         isBlocked: false,
-        sessionExpiry,
       })
 
       return {
@@ -95,26 +65,7 @@ export const createAuthActions = (set, get) => ({
       isAuthenticated: false,
       user: null,
       token: null,
-      sessionExpiry: null,
     })
-  },
-
-  // Verifica si la sesión sigue vigente. Si el JWT expiró, dispara logout.
-  // El backend es la autoridad final: en cuanto rechace con 401/403, el
-  // interceptor global cerrará sesión, pero esta verificación cliente
-  // permite redirigir sin esperar a la próxima petición.
-  checkSession: () => {
-    const { isAuthenticated, token } = get()
-
-    if (!isAuthenticated) return false
-
-    const expiryMs = getTokenExpiryMs(token)
-    if (expiryMs !== null && expiryMs <= Date.now()) {
-      get().logout()
-      return false
-    }
-
-    return true
   },
 
   // Obtener tiempo restante de bloqueo

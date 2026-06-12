@@ -12,6 +12,7 @@ import { motion } from 'framer-motion'
 import { useReviewStore, useFieldStore } from '../store/modules'
 import useAuthStore from '../store/authStore'
 import { fetchUsers } from '../services/users/usersService'
+import StarRating from './common/StarRating'
 import Swal from 'sweetalert2'
 
 const ReviewsManagementModule = () => {
@@ -156,8 +157,17 @@ const ReviewsManagementModule = () => {
     return fieldStats
   }, [reviews, userFields])
 
-  const handleToggleVisibility = (reviewId) => {
-    toggleReviewVisibility(reviewId)
+  const handleToggleVisibility = async (reviewId) => {
+    try {
+      await toggleReviewVisibility(reviewId)
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo actualizar',
+        text: error.message || 'No se pudo cambiar la visibilidad de la reseña',
+        confirmButtonColor: '#dc2626',
+      })
+    }
   }
 
   const handleDeleteReview = async (reviewId) => {
@@ -172,8 +182,12 @@ const ReviewsManagementModule = () => {
       cancelButtonColor: '#22c55e',
     })
 
-    if (result.isConfirmed) {
-      deleteReview(reviewId)
+    if (!result.isConfirmed) return
+
+    try {
+      // Solo confirmamos el éxito tras persistir en el backend; así el mensaje
+      // no miente cuando la reseña sí desaparece al refrescar.
+      await deleteReview(reviewId)
       Swal.fire({
         icon: 'success',
         title: 'Reseña Eliminada',
@@ -181,26 +195,14 @@ const ReviewsManagementModule = () => {
         confirmButtonColor: '#22c55e',
         timer: 2000,
       })
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo eliminar',
+        text: error.message || 'No se pudo eliminar la reseña',
+        confirmButtonColor: '#dc2626',
+      })
     }
-  }
-
-  const renderStars = (rating) => {
-    return (
-      <div className="flex gap-0.5">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            className={`w-4 h-4 ${
-              i < Math.floor(rating)
-                ? 'fill-yellow-400 text-yellow-400'
-                : i < rating
-                  ? 'fill-yellow-200 text-yellow-400'
-                  : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    )
   }
 
   return (
@@ -461,7 +463,7 @@ const ReviewsManagementModule = () => {
                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                       <p className="text-xs text-yellow-700 font-medium mb-1">General</p>
                       <div className="flex items-center gap-2">
-                        {renderStars(parseFloat(review.overallRating))}
+                        <StarRating rating={review.overallRating} showValue={false} size={4} />
                         <span className="text-sm font-bold text-yellow-700">
                           {review.overallRating}
                         </span>
@@ -472,7 +474,7 @@ const ReviewsManagementModule = () => {
                     <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                       <p className="text-xs text-blue-700 font-medium mb-1">Limpieza</p>
                       <div className="flex items-center gap-2">
-                        {renderStars(review.cleanliness)}
+                        <StarRating rating={review.cleanliness} showValue={false} size={4} />
                         <span className="text-sm font-bold text-blue-700">
                           {review.cleanliness}
                         </span>
@@ -483,7 +485,7 @@ const ReviewsManagementModule = () => {
                     <div className="bg-green-50 rounded-lg p-3 border border-green-200">
                       <p className="text-xs text-green-700 font-medium mb-1">Atención</p>
                       <div className="flex items-center gap-2">
-                        {renderStars(review.service)}
+                        <StarRating rating={review.service} showValue={false} size={4} />
                         <span className="text-sm font-bold text-green-700">{review.service}</span>
                       </div>
                     </div>
@@ -492,7 +494,7 @@ const ReviewsManagementModule = () => {
                     <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
                       <p className="text-xs text-purple-700 font-medium mb-1">Servicios</p>
                       <div className="flex items-center gap-2">
-                        {renderStars(review.facilities)}
+                        <StarRating rating={review.facilities} showValue={false} size={4} />
                         <span className="text-sm font-bold text-purple-700">
                           {review.facilities}
                         </span>

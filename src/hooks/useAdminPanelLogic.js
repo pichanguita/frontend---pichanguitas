@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ADMIN_TABS } from '../constants'
-
-const SESSION_CHECK_INTERVAL_MS = 60000
 
 export const useAdminPanelLogic = ({
   user,
@@ -13,7 +11,6 @@ export const useAdminPanelLogic = ({
   closeModal,
   addActivityLog,
   logout,
-  checkSession,
 }) => {
   const navigate = useNavigate()
 
@@ -30,9 +27,6 @@ export const useAdminPanelLogic = ({
   const [dayFieldFilter, setDayFieldFilter] = useState(null)
   const [dayVisibleFieldIds, setDayVisibleFieldIds] = useState(null)
 
-  const checkSessionRef = useRef(checkSession)
-  checkSessionRef.current = checkSession
-
   // Set initial tab based on user role
   useEffect(() => {
     if (activeTab === ADMIN_TABS.OVERVIEW) {
@@ -44,32 +38,9 @@ export const useAdminPanelLogic = ({
     }
   }, [user, isSuperAdmin])
 
-  // Validación periódica del JWT + al volver a la pestaña (visibilitychange).
-  // El interceptor global cubre el caso de respuesta del backend; aquí
-  // detectamos expiración por tiempo aunque el usuario no haga peticiones.
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    if (!checkSessionRef.current()) return
-
-    const intervalId = setInterval(() => {
-      checkSessionRef.current()
-    }, SESSION_CHECK_INTERVAL_MS)
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkSessionRef.current()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      clearInterval(intervalId)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [isAuthenticated])
-
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated.
+  // La expiración por tiempo la maneja useSessionWatcher (global), que al
+  // vencer el JWT ejecuta logout → isAuthenticated=false → este guard redirige.
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true })

@@ -10,6 +10,11 @@ export const RESERVATION_STATUS = {
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
   NO_SHOW: 'no_show',
+  // El admin marca 'rejected' al rechazar una reserva 'pending' desde Gestión de
+  // Reservas (ver reservationActions.rejectReservationAPI). Es un valor real de la
+  // columna status; se registra aquí como fuente única para que ningún consumidor
+  // (cliente o admin) lo trate como un estado desconocido y caiga en "Pendiente".
+  REJECTED: 'rejected',
 }
 
 // Labels para UI
@@ -19,6 +24,7 @@ export const RESERVATION_STATUS_LABELS = {
   [RESERVATION_STATUS.COMPLETED]: 'Completada',
   [RESERVATION_STATUS.CANCELLED]: 'Cancelada',
   [RESERVATION_STATUS.NO_SHOW]: 'No completada',
+  [RESERVATION_STATUS.REJECTED]: 'Rechazada',
 }
 
 // Colores para badges/indicadores
@@ -28,6 +34,7 @@ export const RESERVATION_STATUS_COLORS = {
   [RESERVATION_STATUS.COMPLETED]: 'blue',
   [RESERVATION_STATUS.CANCELLED]: 'red',
   [RESERVATION_STATUS.NO_SHOW]: 'orange',
+  [RESERVATION_STATUS.REJECTED]: 'red',
 }
 
 // Array de valores válidos
@@ -37,10 +44,13 @@ export const VALID_RESERVATION_STATUS = Object.values(RESERVATION_STATUS)
 // pueden tener un pago "pendiente por registrar". Una reserva en cualquiera de
 // estos estados nunca debe listarse como pendiente ni ofrecer "Registrar Pago".
 // Fuente única para los filtros del módulo de pagos.
+// 'rejected' es terminal: la reserva fue rechazada por el admin, nunca se brindó
+// el servicio y no genera saldo cobrable.
 export const TERMINAL_RESERVATION_STATUSES = [
   RESERVATION_STATUS.COMPLETED,
   RESERVATION_STATUS.CANCELLED,
   RESERVATION_STATUS.NO_SHOW,
+  RESERVATION_STATUS.REJECTED,
 ]
 
 // Helper functions
@@ -49,3 +59,4 @@ export const isConfirmed = (status) => status === RESERVATION_STATUS.CONFIRMED
 export const isCompleted = (status) => status === RESERVATION_STATUS.COMPLETED
 export const isCancelled = (status) => status === RESERVATION_STATUS.CANCELLED
 export const isNoShow = (status) => status === RESERVATION_STATUS.NO_SHOW
+export const isRejected = (status) => status === RESERVATION_STATUS.REJECTED

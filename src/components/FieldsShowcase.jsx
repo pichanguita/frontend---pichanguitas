@@ -2,6 +2,7 @@ import React from 'react'
 import useBookingStore from '../store/bookingStore'
 import { useFieldsShowcase } from '../hooks/useFieldsShowcase'
 import { FieldsGrid, InfoSection, FieldDetailModal } from './fields-showcase'
+import { FeaturedReviews } from './reviews-public'
 
 const FieldsShowcase = () => {
   const { getVisibleFields } = useBookingStore()
@@ -28,6 +29,9 @@ const FieldsShowcase = () => {
 
         {/* Info Section */}
         <InfoSection />
+
+        {/* Reseñas destacadas de clientes */}
+        <FeaturedReviews />
       </div>
 
       {/* Modal de información de cancha */}

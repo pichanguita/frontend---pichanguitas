@@ -10,6 +10,8 @@ import ModalSchedule from './modal/ModalSchedule'
 import ModalDimensions from './modal/ModalDimensions'
 import ModalRules from './modal/ModalRules'
 import ModalEquipment from './modal/ModalEquipment'
+import StarRating from '../common/StarRating'
+import { FieldReviews } from '../reviews-public'
 
 const FieldDetailModal = ({ field, onClose }) => {
   if (!field) return null
@@ -55,6 +57,13 @@ const FieldDetailModal = ({ field, onClose }) => {
             <span>{field.location}</span>
           </div>
 
+          {/* Promedio de calificación (derivado de reseñas visibles) */}
+          {field.totalReviews > 0 && (
+            <div className="mb-4">
+              <StarRating rating={field.rating} count={field.totalReviews} showValue size={5} />
+            </div>
+          )}
+
           {/* Información básica */}
           <ModalBasicInfo field={field} />
 
@@ -77,6 +86,15 @@ const FieldDetailModal = ({ field, onClose }) => {
 
           {/* Reglas */}
           {field.rules && field.rules.length > 0 && <ModalRules rules={field.rules} />}
+
+          {/* Reseñas de la cancha (visibles) */}
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <FieldReviews
+              fieldId={field.id}
+              rating={field.rating}
+              totalReviews={field.totalReviews}
+            />
+          </div>
         </div>
       </motion.div>
     </div>

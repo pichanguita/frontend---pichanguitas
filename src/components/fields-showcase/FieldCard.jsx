@@ -5,6 +5,7 @@ import { getFieldImage, handleFieldImageError } from '../../data/fieldImages'
 import { getFieldAmenities } from '../../utils/bookingHelpers'
 import { SPORT_ICONS } from '../../utils/fields-showcase/constants'
 import StatusBadge from './StatusBadge'
+import StarRating from '../common/StarRating'
 
 const FieldCard = ({ field, onFieldClick, variants }) => {
   const fieldAmenities = getFieldAmenities(field)
@@ -59,6 +60,13 @@ const FieldCard = ({ field, onFieldClick, variants }) => {
           <MapPin className="w-3 h-3 flex-shrink-0" />
           <span className="text-xs truncate">{field.location}</span>
         </div>
+
+        {/* Calificación promedio (derivada de reseñas visibles) */}
+        {field.totalReviews > 0 && (
+          <div className="mb-2">
+            <StarRating rating={field.rating} count={field.totalReviews} showValue size={3} />
+          </div>
+        )}
 
         {/* Deportes soportados */}
         {field.sportType && (

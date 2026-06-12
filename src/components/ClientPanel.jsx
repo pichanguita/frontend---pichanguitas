@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Calendar,
   User,
@@ -32,7 +32,7 @@ const ClientPanel = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false) // Modal de reserva
   const [promotionsBadge, setPromotionsBadge] = useState(0) // Badge de promociones
 
-  const { isAuthenticated, user, logout, checkSession, isCustomer } = useAuthStore()
+  const { isAuthenticated, user, logout, isCustomer } = useAuthStore()
 
   const {
     existingReservations,
@@ -135,33 +135,9 @@ const ClientPanel = () => {
 
   const stats = getUserStats()
 
-  // Validación periódica del JWT + al volver a la pestaña.
-  const checkSessionRef = useRef(checkSession)
-  checkSessionRef.current = checkSession
-  const SESSION_CHECK_INTERVAL_MS = 60000
-
-  useEffect(() => {
-    if (!isAuthenticated) return
-
-    if (!checkSessionRef.current()) return
-
-    const intervalId = setInterval(() => {
-      checkSessionRef.current()
-    }, SESSION_CHECK_INTERVAL_MS)
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkSessionRef.current()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      clearInterval(intervalId)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [isAuthenticated])
-
+  // La expiración por tiempo la maneja useSessionWatcher (global), que al
+  // vencer el JWT ejecuta logout → isAuthenticated=false → el guard de abajo
+  // redirige al login.
   const handleLogout = () => {
     logout()
   }

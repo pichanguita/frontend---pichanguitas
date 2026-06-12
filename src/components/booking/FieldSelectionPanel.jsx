@@ -1,16 +1,10 @@
 import React from 'react'
-import {
-  MapPin,
-  ChevronLeft,
-  ChevronRight,
-  Image,
-  CheckCircle,
-  Star,
-  AlertCircle,
-} from 'lucide-react'
+import { MapPin, ChevronLeft, ChevronRight, Image, CheckCircle, AlertCircle } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { API_CONFIG } from '../../config/api.config'
+import StarRating from '../common/StarRating'
+import { FieldReviews } from '../reviews-public'
 
 /**
  * FieldSelectionPanel - Componente de Selección de Canchas (Paso 2)
@@ -140,12 +134,9 @@ const FieldSelectionPanel = ({
                             </span>
                             <span className="text-xs text-secondary-500">por hora</span>
                           </div>
-                          {field.rating > 0 && (
-                            <div className="flex items-center justify-center gap-1 mb-3">
-                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                              <span className="text-xs font-medium">
-                                {(parseFloat(field.rating) || 0).toFixed(1)}
-                              </span>
+                          {field.totalReviews > 0 && (
+                            <div className="flex justify-center mb-3">
+                              <StarRating rating={field.rating} showValue size={3} />
                             </div>
                           )}
                           <button
@@ -327,31 +318,25 @@ const FieldSelectionPanel = ({
                   </div>
 
                   <div className="p-4" style={{ backgroundColor: 'white' }}>
-                    {/* Rating Display */}
-                    {field.rating > 0 && (
-                      <div className="flex items-center gap-1 mb-3">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-5 h-5 ${
-                              i < Math.floor(parseFloat(field.rating) || 0)
-                                ? 'text-[#ffd500]'
-                                : i < (parseFloat(field.rating) || 0)
-                                  ? 'text-[#ffd500]'
-                                  : 'text-gray-300'
-                            }`}
-                            fill={i < (parseFloat(field.rating) || 0) ? '#ffd500' : 'none'}
-                          />
-                        ))}
-                        <span className="text-sm font-medium ml-1" style={{ color: '#000000' }}>
-                          {(parseFloat(field.rating) || 0).toFixed(1)}
-                        </span>
-                        <span className="text-xs" style={{ color: '#000000' }}>
-                          ({field.totalReviews || 0}{' '}
-                          {field.totalReviews === 1 ? 'reseña' : 'reseñas'})
-                        </span>
+                    {/* Rating Display (promedio derivado de reseñas visibles) */}
+                    {field.totalReviews > 0 && (
+                      <div className="mb-3">
+                        <StarRating
+                          rating={field.rating}
+                          count={field.totalReviews}
+                          showValue
+                          size={5}
+                        />
                       </div>
                     )}
+
+                    {/* Lista de reseñas de la cancha (colapsable) */}
+                    <FieldReviews
+                      fieldId={field.id}
+                      rating={field.rating}
+                      totalReviews={field.totalReviews}
+                      collapsible
+                    />
 
                     {/* Indicador de adelanto requerido por la cancha */}
                     {(field.requiresAdvancePayment ?? field.requires_advance_payment) && (

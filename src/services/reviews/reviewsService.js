@@ -57,6 +57,100 @@ export const fetchReviews = async (filters = {}) => {
 }
 
 /**
+ * Eliminar (soft delete) una reseña desde el panel de administración.
+ * El backend marca status='inactive' e is_visible=false; el listado deja de
+ * devolverla, por lo que no reaparece al refrescar.
+ */
+export const deleteReviewAPI = async (id, token) => {
+  try {
+    const response = await fetch(API_CONFIG.REVIEWS.DELETE(id), {
+      method: 'DELETE',
+      headers: getAuthHeaders(token),
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Error al eliminar reseña')
+
+    return true
+  } catch (error) {
+    console.error('Error al eliminar reseña:', error)
+    throw new Error(error.message || 'Error al eliminar reseña')
+  }
+}
+
+/**
+ * Cambiar la visibilidad (publicar/ocultar) de una reseña y persistirla.
+ */
+export const setReviewVisibilityAPI = async (id, isVisible, token) => {
+  try {
+    const response = await fetch(API_CONFIG.REVIEWS.TOGGLE_VISIBILITY(id), {
+      method: 'PUT',
+      headers: getAuthHeaders(token),
+      body: JSON.stringify({ is_visible: isVisible }),
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Error al cambiar visibilidad de reseña')
+
+    return transformReview(data.data)
+  } catch (error) {
+    console.error('Error al cambiar visibilidad de reseña:', error)
+    throw new Error(error.message || 'Error al cambiar visibilidad de reseña')
+  }
+}
+
+/**
+ * Obtener reseñas visibles de una cancha desde el endpoint público
+ * (sin autenticación). Usado por la landing y el flujo de reserva.
+ *
+ * @param {number} fieldId - ID de la cancha
+ * @param {Object} options - { limit, offset } para paginación incremental
+ * @returns {Promise<{ reviews: Array, total: number }>}
+ */
+export const fetchPublicFieldReviews = async (fieldId, { limit, offset } = {}) => {
+  try {
+    const queryParams = new URLSearchParams()
+    if (limit != null) queryParams.append('limit', limit)
+    if (offset != null) queryParams.append('offset', offset)
+
+    const query = queryParams.toString()
+    const base = API_CONFIG.REVIEWS.PUBLIC_BY_FIELD(fieldId)
+    const url = query ? `${base}?${query}` : base
+
+    const response = await fetch(url, { method: 'GET' })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Error al obtener reseñas')
+
+    return {
+      reviews: (data.data || []).map(transformReview),
+      total: data.total ?? 0,
+    }
+  } catch (error) {
+    console.error('Error al obtener reseñas de la cancha:', error)
+    throw new Error(error.message || 'Error al obtener reseñas')
+  }
+}
+
+/**
+ * Obtener las reseñas destacadas globales desde el endpoint público
+ * (sin autenticación). Usado por la sección de reseñas de la landing.
+ *
+ * @param {number} [limit] - Máximo de reseñas a traer
+ * @returns {Promise<Array>}
+ */
+export const fetchFeaturedReviews = async (limit) => {
+  try {
+    const query = limit != null ? `?limit=${limit}` : ''
+    const response = await fetch(`${API_CONFIG.REVIEWS.PUBLIC_FEATURED}${query}`, { method: 'GET' })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Error al obtener reseñas destacadas')
+
+    return (data.data || []).map(transformReview)
+  } catch (error) {
+    console.error('Error al obtener reseñas destacadas:', error)
+    throw new Error(error.message || 'Error al obtener reseñas destacadas')
+  }
+}
+
+/**
  * Crear una reseña asociada a una reserva completada.
  */
 export const createReviewAPI = async (reviewData, token) => {

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { securityConfig } from '../data/auth'
+import { AUTH_STORAGE_KEY } from '../config/storageKeys'
 import {
   createAuthActions,
   createUserManagement,
@@ -21,7 +22,6 @@ const useAuthStore = create(
       loginAttempts: 0,
       lastLoginAttempt: null,
       isBlocked: false,
-      sessionExpiry: null,
 
       // Datos de usuarios (se cargan desde el backend)
       users: [],
@@ -58,7 +58,7 @@ const useAuthStore = create(
       ...createActivityLogs(set, get),
     }),
     {
-      name: 'admin-auth-storage',
+      name: AUTH_STORAGE_KEY,
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,
@@ -66,7 +66,6 @@ const useAuthStore = create(
         loginAttempts: state.loginAttempts,
         lastLoginAttempt: state.lastLoginAttempt,
         isBlocked: state.isBlocked,
-        sessionExpiry: state.sessionExpiry,
         // NO guardar users, siempre usar los del código
         activityLogs: state.activityLogs,
       }),

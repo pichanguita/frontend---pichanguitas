@@ -171,6 +171,7 @@ const ReservationRow = ({ reservation, field }) => {
       [RESERVATION_STATUS.CANCELLED]: 'bg-red-100 text-red-800',
       [RESERVATION_STATUS.COMPLETED]: 'bg-blue-100 text-blue-800',
       [RESERVATION_STATUS.NO_SHOW]: 'bg-orange-100 text-orange-800',
+      [RESERVATION_STATUS.REJECTED]: 'bg-red-100 text-red-800',
     }[reservation.status] || 'bg-gray-100 text-gray-800'
 
   return (

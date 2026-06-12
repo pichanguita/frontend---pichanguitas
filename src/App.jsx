@@ -11,6 +11,7 @@ import ToastNotification from './components/ToastNotification'
 import BadgeUnlockedNotification from './components/BadgeUnlockedNotification'
 import { APP_CONFIG } from '@/config/app.config'
 import { installAuthInterceptor } from '@/utils/authInterceptor'
+import { useSessionWatcher } from '@/hooks'
 // import './utils/testNotifications' // Desactivado - solo activar para pruebas
 
 // Instalar interceptor global que detecta tokens expirados (401/403) y
@@ -18,6 +19,10 @@ import { installAuthInterceptor } from '@/utils/authInterceptor'
 installAuthInterceptor()
 
 function App() {
+  // Vigilancia proactiva de expiración de sesión (sin depender de peticiones):
+  // expulsa al login en el instante exacto en que vence el JWT.
+  useSessionWatcher()
+
   // Limpiar localStorage una sola vez al cargar
   useEffect(() => {
     const currentVersion = localStorage.getItem('app-version')

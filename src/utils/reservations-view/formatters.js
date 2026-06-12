@@ -75,6 +75,17 @@ export const getStatusBadge = (reservation) => {
     }
   }
 
+  // Rechazada: el admin rechazó la reserva desde Gestión de Reservas. Es un estado
+  // terminal; sin este caso la reserva caería en el `return` por defecto y se
+  // mostraría como "Pendiente", contradiciendo lo que ve el admin.
+  if (reservation.status === 'rejected') {
+    return {
+      color: 'bg-red-100 text-red-800',
+      iconName: 'XCircle',
+      text: 'Rechazada',
+    }
+  }
+
   // No-show: el cliente no se presentó. El SA/admin marcó la reserva como
   // 'no_show' (tanto status como payment_status). Es un estado terminal.
   if (reservation.status === 'no_show' || reservation.paymentStatus === 'no_show') {

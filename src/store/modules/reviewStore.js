@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import { fetchReviews } from '../../services/reviews/reviewsService'
+import {
+  fetchReviews,
+  deleteReviewAPI,
+  setReviewVisibilityAPI,
+} from '../../services/reviews/reviewsService'
 import { parseLocalDate } from '../../utils/dateFormatters'
 
 /**
@@ -54,54 +58,47 @@ const useReviewStore = create((set, get) => ({
   },
 
   /**
-   * Admin: alternar visibilidad local de una reseña y recalcular rating.
+   * Admin: alternar visibilidad de una reseña.
+   *
+   * Persiste el cambio en el backend ANTES de tocar el estado local: si la
+   * petición falla, propaga el error y el estado no se desincroniza. Sin esto,
+   * ocultar/mostrar solo vivía en memoria y se perdía al refrescar.
+   *
+   * El promedio de la cancha NO se recalcula aquí: es un valor derivado de las
+   * reseñas visibles en el backend (fuente única), por lo que se refresca solo
+   * al recargar las canchas. Ocultar una reseña la excluye del promedio
+   * automáticamente.
    */
-  toggleReviewVisibility: (reviewId, updateFieldRating) => {
+  toggleReviewVisibility: async (reviewId) => {
     const { reviews } = get()
-    const updatedReviews = reviews.map((r) =>
-      r.id === reviewId ? { ...r, isVisible: !r.isVisible } : r
-    )
-    set({ reviews: updatedReviews })
+    const target = reviews.find((r) => r.id === reviewId)
+    if (!target) return false
 
-    if (!updateFieldRating) return
-    const affectedReview = updatedReviews.find((r) => r.id === reviewId)
-    if (!affectedReview) return
+    const nextVisible = !target.isVisible
+    await setReviewVisibilityAPI(reviewId, nextVisible)
 
-    const fieldReviews = updatedReviews.filter(
-      (r) => r.fieldId === affectedReview.fieldId && r.isVisible
-    )
-    const avgRating =
-      fieldReviews.length > 0
-        ? (
-            fieldReviews.reduce((sum, r) => sum + parseFloat(r.overallRating), 0) /
-            fieldReviews.length
-          ).toFixed(1)
-        : 0
-    updateFieldRating(affectedReview.fieldId, parseFloat(avgRating), fieldReviews.length)
+    set({
+      reviews: reviews.map((r) => (r.id === reviewId ? { ...r, isVisible: nextVisible } : r)),
+    })
+    return true
   },
 
   /**
-   * Admin: eliminar localmente una reseña y recalcular rating.
+   * Admin: eliminar (soft delete) una reseña.
+   *
+   * Persiste la eliminación en el backend ANTES de actualizar el estado local;
+   * solo si el backend confirma se quita de la lista. Así un refresco no
+   * resucita la reseña (antes solo se borraba en memoria). El promedio de la
+   * cancha se ajusta solo, por ser derivado en el backend.
    */
-  deleteReview: (reviewId, updateFieldRating) => {
+  deleteReview: async (reviewId) => {
     const { reviews } = get()
     const review = reviews.find((r) => r.id === reviewId)
     if (!review) return false
 
-    const updatedReviews = reviews.filter((r) => r.id !== reviewId)
-    set({ reviews: updatedReviews })
+    await deleteReviewAPI(reviewId)
 
-    if (updateFieldRating) {
-      const fieldReviews = updatedReviews.filter((r) => r.fieldId === review.fieldId && r.isVisible)
-      const avgRating =
-        fieldReviews.length > 0
-          ? (
-              fieldReviews.reduce((sum, r) => sum + parseFloat(r.overallRating), 0) /
-              fieldReviews.length
-            ).toFixed(1)
-          : 0
-      updateFieldRating(review.fieldId, parseFloat(avgRating), fieldReviews.length)
-    }
+    set({ reviews: reviews.filter((r) => r.id !== reviewId) })
     return true
   },
 }))

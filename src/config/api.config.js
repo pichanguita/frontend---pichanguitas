@@ -5,6 +5,7 @@
  */
 
 import config from './environment'
+import { AUTH_STORAGE_KEY } from './storageKeys'
 
 // URL base de la API - obtener desde configuración de entorno
 const API_BASE_URL = config.api.baseUrl
@@ -157,6 +158,11 @@ export const API_CONFIG = {
   REVIEWS: {
     GET_ALL: `${API_BASE_URL}/api/reviews`,
     CREATE: `${API_BASE_URL}/api/reviews`,
+    DELETE: (id) => `${API_BASE_URL}/api/reviews/${id}`,
+    TOGGLE_VISIBILITY: (id) => `${API_BASE_URL}/api/reviews/${id}/visibility`,
+    // Endpoints públicos (sin autenticación) para landing y flujo de reserva
+    PUBLIC_BY_FIELD: (fieldId) => `${API_BASE_URL}/api/public/fields/${fieldId}/reviews`,
+    PUBLIC_FEATURED: `${API_BASE_URL}/api/public/reviews/featured`,
   },
 
   // Endpoints de insignias
@@ -371,7 +377,7 @@ export const API_CONFIG = {
 // Helper para obtener el token desde localStorage
 export const getToken = () => {
   try {
-    const authData = localStorage.getItem('admin-auth-storage')
+    const authData = localStorage.getItem(AUTH_STORAGE_KEY)
     if (authData) {
       const parsed = JSON.parse(authData)
       return parsed.state?.token || null

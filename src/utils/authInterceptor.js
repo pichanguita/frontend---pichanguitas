@@ -1,24 +1,21 @@
 /**
- * Interceptor global de autenticación.
+ * Interceptor global de autenticación (red de seguridad reactiva).
  *
- * Monkey-patchea window.fetch una sola vez para detectar respuestas 401/403
- * provenientes del backend que indiquen token ausente, inválido o expirado.
- * Cuando se detecta, fuerza el logout del store y redirige al login,
- * eliminando el caso en que la sesión queda abierta pero los módulos no cargan.
+ * Monkey-patchea window.fetch una sola vez para detectar respuestas del backend
+ * que indiquen sesión inválida/expirada y delega la expulsión en la autoridad
+ * única `expelToLogin`. La detección se basa en el `code` estable que devuelve
+ * authMiddleware (no en el texto del mensaje).
+ *
+ * La detección proactiva por tiempo (sin necesidad de una petición) la hace
+ * useSessionWatcher; este interceptor cubre el caso en que el backend rechaza
+ * una petición en vuelo.
  */
 
-import useAuthStore from '@/store/authStore'
 import { API_CONFIG } from '@/config/api.config'
+import { SESSION_INVALIDATION_CODES } from '@/config/authErrorCodes'
+import { expelToLogin } from './sessionExpulsion'
 
 const INSTALLED_FLAG = '__pichanguitasAuthInterceptorInstalled__'
-
-// Rutas del FE donde NO se debe redirigir al login (evitar bucle).
-const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password']
-
-const isPublicRoute = () => {
-  const pathname = window.location.pathname || ''
-  return PUBLIC_ROUTES.some((route) => pathname.startsWith(route))
-}
 
 const isApiRequest = (input) => {
   try {
@@ -32,48 +29,22 @@ const isApiRequest = (input) => {
 }
 
 /**
- * Devuelve true si la respuesta es una expiración/invalidez de token.
- * Aceptamos 401 (sin token / token inválido en algunos flujos) y 403 con
- * mensaje de token (que es lo que devuelve authMiddleware del backend).
- * Se clona la respuesta para no consumir el body original.
+ * Devuelve true si la respuesta corresponde a una sesión inválida/expirada.
+ * Se apoya en el `code` estable de authMiddleware. Se clona la respuesta para
+ * no consumir el body original que leerá el servicio que hizo la petición.
  */
 const isAuthFailure = async (response) => {
   if (response.status !== 401 && response.status !== 403) return false
 
-  // 401: sin token o credenciales rechazadas en endpoints autenticados
-  // 403: middleware devuelve "Token inválido o expirado"
   try {
     const clone = response.clone()
     const data = await clone.json()
-    const message = (data?.error || data?.message || '').toLowerCase()
-
-    if (response.status === 401) {
-      // Si es login fallido por credenciales, NO cerrar sesión global
-      if (message.includes('contraseña') || message.includes('password')) {
-        return false
-      }
-      return message.includes('token') || message.includes('no proporcionado')
-    }
-
-    // 403: solo si menciona token (otros 403 son de permisos, no de sesión)
-    return message.includes('token')
+    return SESSION_INVALIDATION_CODES.has(data?.code)
   } catch {
-    // Si no se puede parsear, asumimos sesión expirada solo en 403
-    return response.status === 403
+    // Sin body parseable no podemos afirmar que sea una falla de sesión;
+    // evitamos cerrar sesión ante 403 de permisos u otros errores.
+    return false
   }
-}
-
-const handleAuthFailure = () => {
-  if (isPublicRoute()) return
-
-  try {
-    useAuthStore.getState().logout()
-  } catch (error) {
-    console.error('Error al cerrar sesión por token expirado:', error)
-  }
-
-  // Redirección dura para garantizar limpieza completa del estado en memoria.
-  window.location.assign('/login')
 }
 
 export const installAuthInterceptor = () => {
@@ -86,7 +57,7 @@ export const installAuthInterceptor = () => {
     const response = await originalFetch(input, init)
 
     if (isApiRequest(input) && (await isAuthFailure(response))) {
-      handleAuthFailure()
+      expelToLogin()
     }
 
     return response
